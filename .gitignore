@@ -4,6 +4,8 @@
 *.egg
 *.egg-info
 dist
+local
+include
 build
 eggs
 parts
