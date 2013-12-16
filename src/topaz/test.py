@@ -9,9 +9,9 @@ EEPROM_REG_RWDATA = 2
 
 
 def read_ee(device, addr):
-    device.write(EEPROM_REG_ADDRL, addr & 0xFF)
-    device.write(EEPROM_REG_ADDRH, (addr >> 8) & 0xFF)
-    val = device.read(EEPROM_REG_RWDATA)
+    device.write_reg(EEPROM_REG_ADDRL, addr & 0xFF)
+    device.write_reg(EEPROM_REG_ADDRH, (addr >> 8) & 0xFF)
+    val = device.read_reg(EEPROM_REG_RWDATA)
     return val
 
 
@@ -23,12 +23,12 @@ def get_PWRCYCS(device):
 
 
 if __name__ == "__main__":
-    da = DeviceAPI(port=0, bitrate=100)
-    da.open()
+    da = DeviceAPI(bitrate=100)
+    da.open(portnum=0)
     da.slave_addr = 20
     while 1:
-        print "PGEM: " + str(da.read(0x05))
-        print "TEMP: " + str(da.read(0x06))
-        print "VCAP: " + str(da.read(0x08))
+        print "PGEM: " + str(da.read_reg(0x05))
+        print "TEMP: " + str(da.read_reg(0x06))
+        print "VCAP: " + str(da.read_reg(0x08))
         print "Power Cycle: " + str(get_PWRCYCS(da))
         da.sleep(1000)
