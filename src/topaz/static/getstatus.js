@@ -2,6 +2,7 @@ $(function () {
     options = {
         chart: {
             renderTo: 'container1',
+            height: 300
         },
         title: {
             text: 'Current VCAP of DUT',
