@@ -2,83 +2,44 @@
 <html>
     <head>
     <link href="{{ url_for('static', filename='topaz.css') }}" rel="stylesheet" />
-    <link href="{{ url_for('static', filename='jquery-ui.css') }}" rel="stylesheet" />
+    <link href="{{ url_for('static', filename='bootstrap.min.css') }}" rel="stylesheet" />
 
     <script src="{{ url_for('static', filename='jquery.js') }}" type="text/javascript"></script>
-    <script src="{{ url_for('static', filename='jquery-ui-min.js') }}" type="text/javascript"></script>
+    <script src="{{ url_for('static', filename='bootstrap.min.js') }}" type="text/javascript"></script>
     <script src="{{ url_for('static', filename='highcharts.js') }}" type="text/javascript"></script>
+    
+    <script src="{{ url_for('static', filename='getstatus.js') }}" type="text/javascript"></script>
+
     <title>TOPAZ BI</title>        
     </head>
     <body>
-        <div>
-            <p>Hello World. By Flask, Jquery, and Jquery UI.</p>
-            <button id="test">Test</button>
+        <H2>TOPAZ BURN IN SYSTEM MONITOR</H2>
+        <div id="control_panel">
+            <div class="btn-group">
+            <button id="start" type="button" class="btn btn-primary">START</button>
+            <button id="stop" type="button" class="btn btn-default">STOP</button>
+            <button id="pause" type="button" class="btn btn-default">PAUSE</button>
+            </div>
+        </div>
+        <div id="dut_main">
+
+            <table class="table table-bordered">
+                <tr>
+                    <td>
+                        <span>DUT1</span><span class="label label-warning">Testing</span>
+                    </td>
+                    <td>
+                        <span>DUT2</span><span class="label label-warning">Testing</span>
+                    </td>
+                    <td>
+                        <span>DUT3</span><span class="label label-success">Pass</span>
+                    </td>
+                    <td>
+                        <span>DUT4</span><span class="label label-danger">Fail</span>
+                    </td>
+                </tr>
+            </table>
         </div>
         <div id="container1"></div>
     </body>
-
-
-<script>
-$(function () {
-    options = {
-        chart: {
-            renderTo: 'container1',
-        },
-        title: {
-            text: 'Current VCAP of DUT',
-            x: -20 //center
-        },
-        subtitle: {
-            text: 'Source: 127',
-            x: -20
-        },
-        yAxis: {
-            title: {
-                text: 'Temperature (°C)'
-            },
-            plotLines: [{
-                value: 0,
-                width: 1,
-                color: '#808080'
-            }]
-        },
-        tooltip: {
-            valueSuffix: '°C'
-        },
-        legend: {
-            layout: 'vertical',
-            align: 'right',
-            verticalAlign: 'middle',
-            borderWidth: 0
-        },
-        series: []
-    };
-
-    $("#container1").empty();
-});
-
-
-$("#test")
-.button()
-.click(function() {
-    displaychart = new Highcharts.Chart(options);
-    series1 = {name: 'DUT1', data: []}
-    $.ajax({
-        url: "/getstatus",
-        data: {name: series1.name},
-        dataType: "json",
-        success: function(response){
-            $.each(response.data, function(itemNo, item) {
-                series1.data.push(item)
-            });
-            displaychart.addSeries(series1);
-            displaychart.redraw();
-        },
-        error: function(jqXHR,textStatus,errorThrown){
-            console.log(textStatus)  
-        }
-    });
-});
-
-</script>
 </html>
