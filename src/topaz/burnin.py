@@ -15,11 +15,25 @@ def read_ee(device, addr):
     return val
 
 
+def read_vpd(device, start_addr, bytenum):
+    return [read_ee(device, addr) for addr in range(start_addr, bytenum)]
+
+
 def get_PWRCYCS(device):
     data1 = read_ee(device, 0x268)
     data2 = read_ee(device, 0x269)
     val = data1 + (data2 << 8)
     return val
+
+
+def get_PWRCYCS2(device):
+    result = read_vpd(device, 0x268, 2)
+    val = result[0] + (result[1] << 8)
+    return val
+
+
+def get_MODEL(device):
+    read_vpd(device, 0x026B, 8)
 
 
 if __name__ == "__main__":
@@ -31,4 +45,5 @@ if __name__ == "__main__":
         print "TEMP: " + str(da.read_reg(0x06))
         print "VCAP: " + str(da.read_reg(0x08))
         print "Power Cycle: " + str(get_PWRCYCS(da))
+        print "Power Cycle2: " + str(get_PWRCYCS2(da))
         da.sleep(1000)
