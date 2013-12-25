@@ -2,26 +2,58 @@
 # encoding: utf-8
 import atexit
 import time
+import os
+import sys
+import logging
+from ColorizingStreamHandler import ColorizingStreamHandler
+
+LOG_FILE = 'error.log'
+
+
+def init_log():
+    if os.path.isfile(LOG_FILE):
+        os.remove(LOG_FILE)     # remove the log file
+
+    logger = logging.getLogger()
+    formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
+
+    # add stdout handler
+    #stdhl = logging.StreamHandler(sys.stdout)
+    stdhl = ColorizingStreamHandler(sys.stdout)
+    stdhl.setFormatter(formatter)
+    stdhl.setLevel(logging.DEBUG)   # print everything
+
+    # add file handler
+    hdlr = logging.FileHandler(LOG_FILE)
+    hdlr.setFormatter(formatter)
+    hdlr.setLevel(logging.WARNING)   # save WARNING, EEROR and CRITICAL to file
+
+    logger.addHandler(hdlr)
+    logger.addHandler(stdhl)
+    logger.setLevel(logging.DEBUG)
+    return logger
+
+logger = init_log()
 
 try:
     from i2c_adapter.i2c_adapter import DeviceAPI
 except ImportError, e:
-    print "[-] Module i2c_adapter is not found."
-    print "[-] program terminated..."
+    logger.critical("[-] Module i2c_adapter is not found.")
+    logger.warning("[!] program terminated...")
     exit(0)
 try:
     from pymongo import MongoClient
     mongo_client = MongoClient('mongodb://localhost:27017/')
     db = mongo_client["topaz_bi"]
 except ImportError, e:
-    print "[-] MongoDB is not found. Need install it first."
-    print "[-] program terminated..."
+    logger.critical("[-] MongoDB is not found. Need install it first.")
+    logger.warning("[!] program terminated...")
     exit(0)
 
 dutinfo_collection = db["dut_info"]         # collection for DUTs archived
 dutburnin_collection = db["dut_burnin"]     # collection for detail burnin info
 dutrunning_collection = db["dut_running"]   # collection for 128 running DUTs
-dutrunning_collection.remove()                # delete the real time status
+dutrunning_collection.remove()              # delete the real time status
 
 REG_MAP = [{"name": "READINESS", "addr": 0x04},
            {"name": "PGEMSTAT",  "addr": 0x05},
@@ -143,17 +175,17 @@ def dut_info(dut_num):
             if(e.args[1] == 3):    # I2C read error, dut is not present
                 dut.update({"DUT_STATUS": DUTStatus.BLANK})
                 dutrunning_collection.insert(dut)
-                print("[-] " + "DUT not Found On " + str(dut_num))
+                logger.error("[-] " + "DUT not found on " + str(dut_num))
             else:
-                print ("[-] ") + str(e)
+                logger.error("[-] " + str(e))
             return
-    print("[*] " + "Found " + dut["MODEL"] + " " +
-          dut["SN"] + " On " + str(dut_num))
+    logger.info("[*] " + "Found " + dut["MODEL"] + " " +
+                dut["SN"] + " on " + str(dut_num))
     # query the archived DUT info database
     query = {"SN": dut["SN"], "MODEL": dut["MODEL"]}
     if(dutinfo_collection.find_one(query)):
         # DUT already in DUT info
-        print "[!] " + dut["SN"] + " already exists in dut_info database"
+        logger.warning("[!] " + dut["SN"] + " already exists in dut_info database")
         return
     else:
         dut.update({"DUT_STATUS": DUTStatus.IDLE})
@@ -170,58 +202,64 @@ def cycling(dut_num):
     dut = dutrunning_collection.find_one({"DUT_NUM": dut_num})
     if(not dut):
         # dut info is not found at dut running collection
-        print "[-] DUT_NUM " + str(dut_num) + " is not present."
+        logger.error("[-] DUT_NUM " + str(dut_num) + " is not present.")
         return
 
     # read current status, if IDLE, then TESTING
     if(dut["DUT_STATUS"] != DUTStatus.IDLE):
-        print "[-] DUT_NUM " + str(dut_num) + " is not IDLE."
+        logger.error("[-] DUT_NUM " + str(dut_num) + " is not IDLE.")
         return
 
+    burninfo = {"DUT_NUM": dut_num}
+    burninfo.update({"SN": dut["SN"], "MODEL": dut["MODEL"]})
+    curr_cycle = int(dut["PWRCYCS"]) + 1
+
     #TODO power on dut, read HW_READY
-    print "[+] " + str(dut_num) + " Charging now"     # debug
+    logger.info("[+] " + str(dut_num) + " is charging now")     # debug
     vcap = readreg_byname(da, "VCAP")
     start_s = time.time()
+    vcaps, temps, times = [], [], []
     while(vcap < LIMITS.VCAP_HIGH):    # charging
-        print "[+] " + str(dut_num) + " VCAP: " + str(vcap)    # debug
-        burninfo = {"DUT_NUM": dut_num}
-        burninfo.update({"SN": dut["SN"], "MODEL": dut["MODEL"]})
-        burninfo.update({"STATUS": "charging"})
-        for reg in REG_MAP:
-            burninfo.update({reg["name"]: readreg_byname(da, reg["name"])})
-        vcap = burninfo["VCAP"]
+        vcap = readreg_byname(da, "VCAP")
+        temp = readreg_byname(da, "TEMP")
         curr_s = time.time() - start_s
-        burninfo.update({"TIME": curr_s})
-        dutburnin_collection.insert(burninfo)
+        vcaps.append(vcap)
+        temps.append(temp)
+        times.append(curr_s)
         if(curr_s > LIMITS.MAX_CHARGE_TIME):
             # over charge time, fail
             dutrunning_collection.update({"DUT_NUM": dut_num}, {"$set": {"DUT_STATUS": DUTStatus.FAILED}})
-            print "[-] over charge time"
+            logger.error("[-] over charge time")
             return
+        logger.info("[+] " + str(dut_num) + " VCAP: " + str(vcap) + " TEMP: " + str(temp) + " TIME: " + str(curr_s))
         time.sleep(2)
+    thecycle = {"NUM": curr_cycle, "VCAP": vcaps, "TEMP": temps, "TIMES": times}
+    burninfo.update({"CYCLES": thecycle})
+    dutburnin_collection.save(burninfo)
+    logger.info("[+] " + str(dut_num) + " is charged")     # debug
 
     #TODO power off dut, close discharge relay
-    print "[+] " + str(dut_num) + " Discharging now"     # debug
-    time.sleep(5)               # debug
-    vcap = readreg_byname(da, "VCAP")
-    start_s = time.time()
-    while(vcap > LIMITS.VCAP_LOW):    # discharging
-        print "[+] " + str(dut_num) + " VCAP: " + str(vcap)    # debug
-        burninfo = {"DUT_NUM": dut_num}
-        burninfo.update({"SN": dut["SN"], "MODEL": dut["MODEL"]})
-        burninfo.update({"STATUS": "discharging"})
-        for reg in REG_MAP:
-            burninfo.update({reg["name"]: readreg_byname(da, reg["name"])})
-        vcap = burninfo["VCAP"]
-        curr_s = time.time() - start_s
-        burninfo.update({"TIME": curr_s})
-        dutburnin_collection.insert(burninfo)
-        if(curr_s > LIMITS.MAX_DISCHANGE_TIME):
-            # over charge time, fail
-            dutrunning_collection.update({"DUT_NUM": dut_num}, {"$set": {"DUT_STATUS": DUTStatus.FAILED}})
-            print "[-] over discharge time"
-            return
-        time.sleep(2)
+    #print "[+] " + str(dut_num) + " Discharging now"     # debug
+    #time.sleep(5)               # debug
+    #vcap = readreg_byname(da, "VCAP")
+    #start_s = time.time()
+    #while(vcap > LIMITS.VCAP_LOW):    # discharging
+    #    print "[+] " + str(dut_num) + " VCAP: " + str(vcap)    # debug
+    #    burninfo = {"DUT_NUM": dut_num}
+    #    burninfo.update({"SN": dut["SN"], "MODEL": dut["MODEL"]})
+    #    burninfo.update({"STATUS": "discharging"})
+    #    for reg in REG_MAP:
+    #        burninfo.update({reg["name"]: readreg_byname(da, reg["name"])})
+    #    vcap = burninfo["VCAP"]
+    #    curr_s = time.time() - start_s
+    #    burninfo.update({"TIME": curr_s})
+    #    dutburnin_collection.insert(burninfo)
+    #    if(curr_s > LIMITS.MAX_DISCHANGE_TIME):
+    #        # over charge time, fail
+    #        dutrunning_collection.update({"DUT_NUM": dut_num}, {"$set": {"DUT_STATUS": DUTStatus.FAILED}})
+    #        print "[-] over discharge time"
+    #        return
+    #    time.sleep(2)
 
     dutrunning_collection.update({"DUT_NUM": dut_num}, {"$set": {"DUT_STATUS": DUTStatus.IDLE}})
     da.close()
@@ -231,8 +269,8 @@ def shutdown():
     """function when exit, exception
     """
     #dutrunning_collection.remove()  # delete the real time status
-    #mongo_client.close()
-    print "[!] program shutdown..."
+    mongo_client.close()
+    logger.warning("[!] program shutdown...")
 
 
 if __name__ == "__main__":
