@@ -41,7 +41,7 @@ DUTLIST = range(1, 129)     # define the list to be tested
 
 # IMPORT SELF-DEFINED MODULES AND GLOBAL_VIRIABLE
 try:
-    import log_io
+    from topaz import log_io
     logger = log_io.init_log(LOG_FILE)
 except ImportError, e:
     print("[-] Module log_io is not found.")
@@ -54,10 +54,16 @@ except ImportError, e:
     logger.warning("[!] program terminated...")
     exit(0)
 try:
-    import data_io
+    from topaz import data_io
     global_db = data_io.DB(DBOPTION, DUTLIST)
 except ImportError, e:
     logger.critical("[-] MongoDB is not found. Need install it first.")
+    logger.warning("[!] program terminated...")
+    exit(0)
+try:
+    from topaz.timeout import timethis
+except ImportError, e:
+    logger.critical("[-] timeout.py is not found.")
     logger.warning("[!] program terminated...")
     exit(0)
 
