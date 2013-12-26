@@ -2,59 +2,13 @@
 # encoding: utf-8
 import atexit
 import time
-import os
-import sys
-import logging
-from ColorizingStreamHandler import ColorizingStreamHandler
 
+# GLOBAL_CONSTANT
 LOG_FILE = 'error.log'
-
-
-def init_log():
-    if os.path.isfile(LOG_FILE):
-        os.remove(LOG_FILE)     # remove the log file
-
-    logger = logging.getLogger()
-    formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
-
-    # add stdout handler
-    #stdhl = logging.StreamHandler(sys.stdout)
-    stdhl = ColorizingStreamHandler(sys.stdout)
-    stdhl.setFormatter(formatter)
-    stdhl.setLevel(logging.DEBUG)   # print everything
-
-    # add file handler
-    hdlr = logging.FileHandler(LOG_FILE)
-    hdlr.setFormatter(formatter)
-    hdlr.setLevel(logging.WARNING)   # save WARNING, EEROR and CRITICAL to file
-
-    logger.addHandler(hdlr)
-    logger.addHandler(stdhl)
-    logger.setLevel(logging.DEBUG)
-    return logger
-
-logger = init_log()
-
-try:
-    from i2c_adapter.i2c_adapter import DeviceAPI
-except ImportError, e:
-    logger.critical("[-] Module i2c_adapter is not found.")
-    logger.warning("[!] program terminated...")
-    exit(0)
-try:
-    from pymongo import MongoClient
-    mongo_client = MongoClient('mongodb://localhost:27017/')
-    db = mongo_client["topaz_bi"]
-except ImportError, e:
-    logger.critical("[-] MongoDB is not found. Need install it first.")
-    logger.warning("[!] program terminated...")
-    exit(0)
-
-dutinfo_collection = db["dut_info"]         # collection for DUTs archived
-dutburnin_collection = db["dut_burnin"]     # collection for detail burnin info
-dutrunning_collection = db["dut_running"]   # collection for 128 running DUTs
-dutrunning_collection.remove()              # delete the real time status
-
+DBOPTION = dict(connectstring='mongodb://localhost:27017/',
+                db_name="topaz_bi",
+                collection_running="dut_running",
+                collection_archive="dut_archive")
 REG_MAP = [{"name": "READINESS", "addr": 0x04},
            {"name": "PGEMSTAT",  "addr": 0x05},
            {"name": "TEMP",      "addr": 0x06},
@@ -80,6 +34,32 @@ EEP_MAP = [{"name": "PWRCYCS", "addr": 0x0268, "length": 2, "type": "word"},
            {"name": "ENDUSR",  "addr": 0x02A3, "length": 8, "type": "str"},
            {"name": "PCA",     "addr": 0x02AB, "length": 8, "type": "str"},
            {"name": "CINT",    "addr": 0x02B3, "length": 1, "type": "int"}]
+EEPROM_REG_ADDRL = 0        # EEPROM register of ADDRESS LOW
+EEPROM_REG_ADDRH = 1        # EEPROM register of ADDRESS HIGH
+EEPROM_REG_RWDATA = 2       # EEPROM register of Data to read and write
+DUTLIST = range(1, 129)     # define the list to be tested
+
+# IMPORT SELF-DEFINED MODULES AND GLOBAL_VIRIABLE
+try:
+    import log_io
+    logger = log_io.init_log(LOG_FILE)
+except ImportError, e:
+    print("[-] Module log_io is not found.")
+    exit(0)
+try:
+    from i2c_adapter.i2c_adapter import DeviceAPI
+    global_da = DeviceAPI(bitrate=400)
+except ImportError, e:
+    logger.critical("[-] Module i2c_adapter is not found.")
+    logger.warning("[!] program terminated...")
+    exit(0)
+try:
+    import data_io
+    global_db = data_io.DB(DBOPTION, DUTLIST)
+except ImportError, e:
+    logger.critical("[-] MongoDB is not found. Need install it first.")
+    logger.warning("[!] program terminated...")
+    exit(0)
 
 
 class LIMITS(object):
@@ -88,14 +68,6 @@ class LIMITS(object):
     MAX_DISCHANGE_TIME = 60  # seconds
     MAX_CHARGE_TIME = 120
     POWER_CYCLE = 100
-
-
-class DUTStatus(object):
-    IDLE = 1        # dut is waiting for burn in
-    BLANK = 2       # dut is not inserted in the slot
-    TESTING = 3     # dut is in burn in
-    FAILED = 4      # dut has failed in burn in
-    PASSED = 5      # dut has passed in burn in
 
 
 def query_map(mymap, **kvargs):
@@ -111,11 +83,6 @@ def query_map(mymap, **kvargs):
             else:
                 return row
     return None
-
-
-EEPROM_REG_ADDRL = 0
-EEPROM_REG_ADDRH = 1
-EEPROM_REG_RWDATA = 2
 
 
 def read_ee(device, addr):
@@ -179,27 +146,24 @@ def dut_info(dut_num):
             else:
                 logger.error("[-] " + str(e))
             return
-    logger.info("[*] " + "Found " + dut["MODEL"] + " " +
+    logger.info("[+] " + "Found " + dut["MODEL"] + " " +
                 dut["SN"] + " on " + str(dut_num))
     # query the archived DUT info database
     query = {"SN": dut["SN"], "MODEL": dut["MODEL"]}
-    if(dutinfo_collection.find_one(query)):
+    if(dutarchived_collection.find_one(query)):
         # DUT already in DUT info
         logger.warning("[!] " + dut["SN"] + " already exists in dut_info database")
         return
     else:
         dut.update({"DUT_STATUS": DUTStatus.IDLE})
-        dutrunning_collection.insert(dut)
+        #dutrunning_collection.insert(dut)
     da.close()
 
 
 def cycling(dut_num):
-    da = DeviceAPI(bitrate=100)
-    da.open(portnum=0)
-    da.slave_addr = 20
 
     # get serial number and model from dut_running
-    dut = dutrunning_collection.find_one({"DUT_NUM": dut_num})
+    #dut = dutrunning_collection.find_one({"DUT_NUM": dut_num})
     if(not dut):
         # dut info is not found at dut running collection
         logger.error("[-] DUT_NUM " + str(dut_num) + " is not present.")
@@ -228,14 +192,14 @@ def cycling(dut_num):
         times.append(curr_s)
         if(curr_s > LIMITS.MAX_CHARGE_TIME):
             # over charge time, fail
-            dutrunning_collection.update({"DUT_NUM": dut_num}, {"$set": {"DUT_STATUS": DUTStatus.FAILED}})
+            #dutrunning_collection.update({"DUT_NUM": dut_num}, {"$set": {"DUT_STATUS": DUTStatus.FAILED}})
             logger.error("[-] over charge time")
             return
         logger.info("[+] " + str(dut_num) + " VCAP: " + str(vcap) + " TEMP: " + str(temp) + " TIME: " + str(curr_s))
         time.sleep(2)
     thecycle = {"NUM": curr_cycle, "VCAP": vcaps, "TEMP": temps, "TIMES": times}
     burninfo.update({"CYCLES": thecycle})
-    dutburnin_collection.save(burninfo)
+    #dutburnin_collection.save(burninfo)
     logger.info("[+] " + str(dut_num) + " is charged")     # debug
 
     #TODO power off dut, close discharge relay
@@ -261,19 +225,63 @@ def cycling(dut_num):
     #        return
     #    time.sleep(2)
 
-    dutrunning_collection.update({"DUT_NUM": dut_num}, {"$set": {"DUT_STATUS": DUTStatus.IDLE}})
-    da.close()
+    DB.update({"DUT_NUM": dut_num}, {"$set": {"DUT_STATUS": DUTStatus.IDLE}})
+
+
+def switch_slot(dutnum):
+    global_da.close()
+    if(dutnum <= 64):
+        global_da.open(portnum=0)  # slot 1
+    else:
+        global_da.open(portnum=1)  # slot 2
+
+
+def switch_brd(dutnum):
+    pass
+
+
+def charge_relay(dutnum, open=True):
+    pass
+
+
+def discharge_relay(dutnum, open=True):
+    pass
+
+
+def HWReady(dutnum):
+    status = True
+    return status
+
+
+def power_12V_on():
+    pass
+
+
+def power_12V_off():
+    pass
 
 
 def shutdown():
     """function when exit, exception
     """
-    #dutrunning_collection.remove()  # delete the real time status
-    mongo_client.close()
+    global_da.close()
+    global_db.close()
     logger.warning("[!] program shutdown...")
 
 
-if __name__ == "__main__":
+def main():
     atexit.register(shutdown)
-    dut_info(1)
-    cycling(1)
+    global_db.init()
+    power_12V_on()
+    while not global_db.check_all_idle():
+        for i in DUTLIST:
+            switch_slot(i)
+            switch_brd(i)
+            charge_relay(i, open=False)
+
+    global_db.close()
+    power_12V_off()
+
+
+if __name__ == "__main__":
+    main()
