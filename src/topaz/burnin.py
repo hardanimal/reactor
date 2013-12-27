@@ -37,7 +37,10 @@ EEP_MAP = [{"name": "PWRCYCS", "addr": 0x0268, "length": 2, "type": "word"},
 EEPROM_REG_ADDRL = 0        # EEPROM register of ADDRESS LOW
 EEPROM_REG_ADDRH = 1        # EEPROM register of ADDRESS HIGH
 EEPROM_REG_RWDATA = 2       # EEPROM register of Data to read and write
-DUTLIST = range(1, 129)     # define the list to be tested
+DUTLIST = range(1, 2)     # define the list to be tested
+
+CHARGE = 0
+DISCHARGE = 1
 
 # IMPORT SELF-DEFINED MODULES AND GLOBAL_VIRIABLE
 try:
@@ -56,24 +59,32 @@ except ImportError, e:
 try:
     from topaz import data_io
     global_db = data_io.DB(DBOPTION, DUTLIST)
+    DUTSTATUS = data_io.DUTStatus
 except ImportError, e:
     logger.critical("[-] MongoDB is not found. Need install it first.")
     logger.warning("[!] program terminated...")
     exit(0)
 try:
     from topaz.timeout import timethis
+    from topaz.error import DUTERROR, DUTException
 except ImportError, e:
-    logger.critical("[-] timeout.py is not found.")
+    logger.critical("[-] self defined  modules are not found.")
     logger.warning("[!] program terminated...")
     exit(0)
 
 
 class LIMITS(object):
-    VCAP_HIGH = 115
-    VCAP_LOW = 50
-    MAX_DISCHANGE_TIME = 60  # seconds
-    MAX_CHARGE_TIME = 120
-    POWER_CYCLE = 100
+    VCAP_LIMITS_HIGH = 130
+    TEMP_LIMITS_HIGH = 40
+    VCAP_THRESH_HIGH = 115
+    VCAP_THRESH_LOW = 50            # need confirm
+    MAX_DISCHANGE_TIME = 20         # seconds
+    MAX_CHARGE_TIME = 100           # seconds
+    POWER_CYCLE = 50                # for testing
+
+
+class I2CADDR(object):
+    DUT = 0x14
 
 
 def query_map(mymap, **kvargs):
@@ -135,103 +146,74 @@ def readreg_byname(device, reg_name):
     return device.read_reg(addr)
 
 
-def dut_info(dut_num):
-    da = DeviceAPI(bitrate=100)
-    da.open(portnum=0)
-    da.slave_addr = 20
-    dut = {"DUT_NUM": dut_num}
+@timethis
+def dut_info(dut):
+    global_da.slave_addr = I2CADDR.DUT
+
     for eep in EEP_MAP:
-        try:
-            eep_name = eep["name"]
-            dut.update({eep_name: readvpd_byname(da, eep_name)})
-        except RuntimeError, e:
-            if(e.args[1] == 3):    # I2C read error, dut is not present
-                dut.update({"DUT_STATUS": DUTStatus.BLANK})
-                dutrunning_collection.insert(dut)
-                logger.error("[-] " + "DUT not found on " + str(dut_num))
-            else:
-                logger.error("[-] " + str(e))
-            return
+        eep_name = eep["name"]
+        dut.update({eep_name: readvpd_byname(global_da, eep_name)})
+
     logger.info("[+] " + "Found " + dut["MODEL"] + " " +
-                dut["SN"] + " on " + str(dut_num))
-    # query the archived DUT info database
-    query = {"SN": dut["SN"], "MODEL": dut["MODEL"]}
-    if(dutarchived_collection.find_one(query)):
-        # DUT already in DUT info
-        logger.warning("[!] " + dut["SN"] + " already exists in dut_info database")
-        return
-    else:
-        dut.update({"DUT_STATUS": DUTStatus.IDLE})
-        #dutrunning_collection.insert(dut)
-    da.close()
+                dut["SN"] + " on " + str(dut["_id"]))
+
+    # read cycles, see if passed already
+    if(dut["PWRCYCS"]) > LIMITS.POWER_CYCLE:
+        raise DUTERROR.DUT_PASSED
 
 
-def cycling(dut_num):
+@timethis
+def dut_charge(cycle_data, start_s):
+    global_da.slave_addr = I2CADDR.DUT
 
-    # get serial number and model from dut_running
-    #dut = dutrunning_collection.find_one({"DUT_NUM": dut_num})
-    if(not dut):
-        # dut info is not found at dut running collection
-        logger.error("[-] DUT_NUM " + str(dut_num) + " is not present.")
-        return
-
-    # read current status, if IDLE, then TESTING
-    if(dut["DUT_STATUS"] != DUTStatus.IDLE):
-        logger.error("[-] DUT_NUM " + str(dut_num) + " is not IDLE.")
-        return
-
-    burninfo = {"DUT_NUM": dut_num}
-    burninfo.update({"SN": dut["SN"], "MODEL": dut["MODEL"]})
-    curr_cycle = int(dut["PWRCYCS"]) + 1
-
-    #TODO power on dut, read HW_READY
-    logger.info("[+] " + str(dut_num) + " is charging now")     # debug
-    vcap = readreg_byname(da, "VCAP")
-    start_s = time.time()
-    vcaps, temps, times = [], [], []
-    while(vcap < LIMITS.VCAP_HIGH):    # charging
-        vcap = readreg_byname(da, "VCAP")
-        temp = readreg_byname(da, "TEMP")
+    tmp = {}
+    vcap = readreg_byname(global_da, "VCAP")
+    while(vcap < LIMITS.VCAP_THRESH_HIGH):    # charging
+        for reg in REG_MAP:
+            data = readreg_byname(global_da, reg["name"])
+            cycle_data[reg["name"]].append(data)
+            tmp.update({reg["name"]: data})
         curr_s = time.time() - start_s
-        vcaps.append(vcap)
-        temps.append(temp)
-        times.append(curr_s)
-        if(curr_s > LIMITS.MAX_CHARGE_TIME):
-            # over charge time, fail
-            #dutrunning_collection.update({"DUT_NUM": dut_num}, {"$set": {"DUT_STATUS": DUTStatus.FAILED}})
-            logger.error("[-] over charge time")
-            return
-        logger.info("[+] " + str(dut_num) + " VCAP: " + str(vcap) + " TEMP: " + str(temp) + " TIME: " + str(curr_s))
+        cycle_data["TIME"].append(curr_s)
+        vcap = tmp["VCAP"]
+        temp = tmp["TEMP"]
+        if(vcap > LIMITS.VCAP_LIMITS_HIGH):
+            # over charge voltage, fail
+            logger.error("[-]" + " over charge voltage: " + str(vcap))
+            raise DUTERROR.VCAP_HIGH
+        if(temp > LIMITS.TEMP_LIMITS_HIGH):
+            # over temperature, fail
+            logger.error("[-]" + " over temperature: " + str(temp))
+            raise DUTERROR.TEMP_HIGH
+        logger.info("[+] " + " VCAP: " + str(vcap) + " TIME: " + str(curr_s))
         time.sleep(2)
-    thecycle = {"NUM": curr_cycle, "VCAP": vcaps, "TEMP": temps, "TIMES": times}
-    burninfo.update({"CYCLES": thecycle})
-    #dutburnin_collection.save(burninfo)
-    logger.info("[+] " + str(dut_num) + " is charged")     # debug
 
-    #TODO power off dut, close discharge relay
-    #print "[+] " + str(dut_num) + " Discharging now"     # debug
-    #time.sleep(5)               # debug
-    #vcap = readreg_byname(da, "VCAP")
-    #start_s = time.time()
-    #while(vcap > LIMITS.VCAP_LOW):    # discharging
-    #    print "[+] " + str(dut_num) + " VCAP: " + str(vcap)    # debug
-    #    burninfo = {"DUT_NUM": dut_num}
-    #    burninfo.update({"SN": dut["SN"], "MODEL": dut["MODEL"]})
-    #    burninfo.update({"STATUS": "discharging"})
-    #    for reg in REG_MAP:
-    #        burninfo.update({reg["name"]: readreg_byname(da, reg["name"])})
-    #    vcap = burninfo["VCAP"]
-    #    curr_s = time.time() - start_s
-    #    burninfo.update({"TIME": curr_s})
-    #    dutburnin_collection.insert(burninfo)
-    #    if(curr_s > LIMITS.MAX_DISCHANGE_TIME):
-    #        # over charge time, fail
-    #        dutrunning_collection.update({"DUT_NUM": dut_num}, {"$set": {"DUT_STATUS": DUTStatus.FAILED}})
-    #        print "[-] over discharge time"
-    #        return
-    #    time.sleep(2)
 
-    DB.update({"DUT_NUM": dut_num}, {"$set": {"DUT_STATUS": DUTStatus.IDLE}})
+@timethis
+def dut_discharge(cycle_data, start_s):
+    global_da.slave_addr = I2CADDR.DUT
+
+    tmp = {}
+    vcap = readreg_byname(global_da, "VCAP")
+    while(vcap > LIMITS.VCAP_THRESH_LOW):    # charging
+        for reg in REG_MAP:
+            data = readreg_byname(global_da, reg["name"])
+            cycle_data[reg["name"]].append(data)
+            tmp.update({reg["name"]: data})
+        curr_s = time.time() - start_s
+        cycle_data["TIME"].append(curr_s)
+        vcap = tmp["VCAP"]
+        temp = tmp["TEMP"]
+        if(vcap > LIMITS.VCAP_LIMITS_HIGH):
+            # over charge voltage, fail
+            logger.error("[-]" + " over charge voltage: " + str(vcap))
+            raise DUTERROR.VCAP_HIGH
+        if(temp > LIMITS.TEMP_LIMITS_HIGH):
+            # over temperature, fail
+            logger.error("[-]" + " over temperature: " + str(temp))
+            raise DUTERROR.TEMP_HIGH
+        logger.info("[+] " + " VCAP: " + str(vcap) + " TIME: " + str(curr_s))
+        time.sleep(2)
 
 
 def switch_slot(dutnum):
@@ -254,8 +236,11 @@ def discharge_relay(dutnum, open=True):
     pass
 
 
+@timethis
 def HWReady(dutnum):
     status = True
+    while(status is not True):
+        status = True
     return status
 
 
@@ -268,25 +253,109 @@ def power_12V_off():
 
 
 def shutdown():
-    """function when exit, exception
-    """
+    """function when exit, exception."""
     global_da.close()
     global_db.close()
     logger.warning("[!] program shutdown...")
 
 
-def main():
-    atexit.register(shutdown)
-    global_db.init()
-    power_12V_on()
-    while not global_db.check_all_idle():
-        for i in DUTLIST:
-            switch_slot(i)
-            switch_brd(i)
-            charge_relay(i, open=False)
+def loop(dutnum):
+    dut = global_db.fetch(dutnum)
+    switch_slot(dutnum)
+    switch_brd(dutnum)
 
-    global_db.close()
-    power_12V_off()
+    # close charge relay
+    charge_relay(dutnum, open=False)
+    start_s = time.time()
+
+    # read hwready signal
+    r = HWReady(dutnum, timeout=5)
+    if(r["timeout"]): raise DUTERROR.HR_TIMEOUT
+    logger.debug(str(r))
+
+    # set testing
+    dut["STATUS"] = DUTSTATUS.TESTING
+    global_db.update(dut)
+
+    # read dut info
+    r = dut_info(dut, timeout=2)
+    if(r["timeout"]): raise DUTERROR.DI_TIMEOUT
+    logger.debug(str(r))
+
+    # charge
+    curr_cycle = int(dut["PWRCYCS"]) + 1
+    logger.info("[+] DUT " + str(dutnum) +
+                " CYCLES: " + str(curr_cycle) + " is charging now")
+    c = {"NUM": curr_cycle, "TIME": []}     # temp dict for this cycle's list
+    for reg in REG_MAP:
+        c.update({reg["name"]: []})
+    r = dut_charge(c, start_s, timeout=LIMITS.MAX_CHARGE_TIME)
+    if(r["timeout"]):
+        if "CYCLES" in dut:
+            dut["CYCLES"].append(c)
+        else:
+            dut.update({"CYCLES": []})
+            dut["CYCLES"].append(c)
+        global_db.update(dut)
+        raise DUTERROR.CH_TIMEOUT
+    logger.debug(str(r))
+    logger.info("[+] " + str(dutnum) + " is charged")     # debug
+
+    # discharge
+    charge_relay(dutnum, open=True)
+    discharge_relay(dutnum, open=False)
+
+    logger.info("[+] DUT " + str(dutnum) +
+                " CYCLES: " + str(curr_cycle) + " is discharging now")
+    r = dut_discharge(c, start_s, timeout=LIMITS.MAX_DISCHANGE_TIME)
+    if(r["timeout"]):
+        if "CYCLES" in dut:
+            dut["CYCLES"].append(c)
+        else:
+            dut.update({"CYCLES": []})
+            dut["CYCLES"].append(c)
+        global_db.update(dut)
+        raise DUTERROR.DC_TIMEOUT
+    logger.info("[+] " + str(dutnum) + " is discharged")     # debug
+
+    if "CYCLES" in dut:
+        dut["CYCLES"].append(c)
+    else:
+        dut.update({"CYCLES": []})
+        dut["CYCLES"].append(c)
+
+    # set IDLE
+    dut["STATUS"] = DUTSTATUS.IDLE
+    global_db.update(dut)
+
+
+def main():
+    try:
+        atexit.register(shutdown)
+        global_db.init()
+        power_12V_on()
+        while not global_db.check_all_idle():
+            for i in DUTLIST:
+                try:
+                    loop(i)
+                except DUTException, e:
+                    if(e.code == DUTERROR.DUT_PASSED):
+                        # make it pass
+                        logger.info("DUT " + str(i) + " " + str(e))
+                        global_db.update_status(i, DUTSTATUS.PASSED, e.message)
+                    elif(e.code == DUTERROR.HR_TIMEOUT):
+                        # HW is not Ready, maybe blank board, skip it.
+                        logger.info("DUT " + str(i) + " " + str(e))
+                        global_db.update_status(i, DUTSTATUS.BLANK, e.message)
+                    else:
+                        # make it fail
+                        logger.error("DUT " + str(i) + " " + str(e))
+                        global_db.update_status(i, DUTSTATUS.FAILED, e.message)
+                    continue
+
+        power_12V_off()
+    except Exception, e:
+        logger.error(str(e))
 
 
 if __name__ == "__main__":
