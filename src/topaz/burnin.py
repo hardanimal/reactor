@@ -37,7 +37,7 @@ EEP_MAP = [{"name": "PWRCYCS", "addr": 0x0268, "length": 2, "type": "word"},
 EEPROM_REG_ADDRL = 0        # EEPROM register of ADDRESS LOW
 EEPROM_REG_ADDRH = 1        # EEPROM register of ADDRESS HIGH
 EEPROM_REG_RWDATA = 2       # EEPROM register of Data to read and write
-DUTLIST = range(1, 2)     # define the list to be tested
+DUTLIST = range(1, 2)       # define the list to be tested
 
 CHARGE = 0
 DISCHARGE = 1
@@ -93,13 +93,9 @@ def query_map(mymap, **kvargs):
             kvargs: query conditon key=value, key should be in the dict.
     return: the dict match the query contdtion or None.
     """
-    for row in mymap:
-        for k, v in kvargs.items():
-            if(row[k] != v):
-                break
-            else:
-                return row
-    return None
+    for k, v in kvargs.items():
+        r = filter(lambda row: row[k] == v,  mymap)
+    return r
 
 
 def read_ee(device, addr):
@@ -122,7 +118,7 @@ def readvpd_byname(device, eep_name):
     eep is one dict in eep_map, for example:
     {"name": "CINT", "addr": 0x02B3, "length": 1, "type": "int"}
     """
-    eep = query_map(EEP_MAP, name=eep_name)      # eep is one dict in eep_map
+    eep = query_map(EEP_MAP, name=eep_name)[0]     # eep is one dict in eep_map
     start = eep["addr"]                 # start_address
     length = eep["length"]              # length
     typ = eep["type"]                   # type
@@ -141,7 +137,7 @@ def readreg_byname(device, reg_name):
     reg is one dict in reg_map, for example:
     {"name": "VCAP",      "addr": 0x08},
     """
-    reg = query_map(REG_MAP, name=reg_name)     # reg is one dict in reg_map
+    reg = query_map(REG_MAP, name=reg_name)[0]     # reg is one dict in reg_map
     addr = reg["addr"]
     return device.read_reg(addr)
 
@@ -217,6 +213,9 @@ def dut_discharge(cycle_data, start_s):
 
 
 def switch_slot(dutnum):
+    """1~64   are in slot 1
+       65~128 are in slot 2
+    """
     global_da.close()
     if(dutnum <= 64):
         global_da.open(portnum=0)  # slot 1
@@ -225,6 +224,11 @@ def switch_slot(dutnum):
 
 
 def switch_brd(dutnum):
+    """dutnmum from 1 to 128.
+    current num = dutnum - 64
+    first switch from 1 to 8 channel
+    then, switch from 1 to 8 on 1 load board
+    """
     pass
 
 
@@ -352,7 +356,6 @@ def main():
                         logger.error("DUT " + str(i) + " " + str(e))
                         global_db.update_status(i, DUTSTATUS.FAILED, e.message)
                     continue
-
         power_12V_off()
     except Exception, e:
         logger.error(str(e))
