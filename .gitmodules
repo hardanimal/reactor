@@ -1,3 +1,0 @@
-[submodule "src/i2c_adapter"]
-	path = src/i2c_adapter
-	url = git@github.com:Qiling-Bo/i2c_adapter.git

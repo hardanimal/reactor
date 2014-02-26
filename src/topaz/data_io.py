@@ -1,14 +1,6 @@
 from pymongo import MongoClient
 
 
-class DUTStatus(object):
-    IDLE = 1        # dut is waiting for burn in
-    BLANK = 2       # dut is not inserted in the slot
-    TESTING = 3     # dut is in burn in
-    FAILED = 4      # dut has failed in burn in
-    PASSED = 5      # dut has passed in burn in
-
-
 class DB(object):
     """class to access the mongodb, save, update and check status
     """

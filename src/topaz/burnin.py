@@ -2,45 +2,10 @@
 # encoding: utf-8
 import atexit
 import time
+import config
 
 # GLOBAL_CONSTANT
 LOG_FILE = 'error.log'
-DBOPTION = dict(connectstring='mongodb://localhost:27017/',
-                db_name="topaz_bi",
-                collection_running="dut_running",
-                collection_archive="dut_archive")
-REG_MAP = [{"name": "READINESS", "addr": 0x04},
-           {"name": "PGEMSTAT",  "addr": 0x05},
-           {"name": "TEMP",      "addr": 0x06},
-           {"name": "VIN",       "addr": 0x07},
-           {"name": "VCAP",      "addr": 0x08},
-           {"name": "VC1",       "addr": 0x09},
-           {"name": "VC2",       "addr": 0x0A},
-           {"name": "VC3",       "addr": 0x0B},
-           {"name": "VC4",       "addr": 0x0C},
-           {"name": "VC5",       "addr": 0x0D},
-           {"name": "VC6",       "addr": 0x0E},
-           {"name": "RESERVED",  "addr": 0x0F}]
-
-EEP_MAP = [{"name": "PWRCYCS", "addr": 0x0268, "length": 2, "type": "word"},
-           {"name": "LASTCAP", "addr": 0x026A, "length": 1, "type": "int"},
-           {"name": "MODEL",   "addr": 0x026B, "length": 8, "type": "str"},
-           {"name": "FWVER",   "addr": 0x0273, "length": 8, "type": "str"},
-           {"name": "HWVER",   "addr": 0x027B, "length": 8, "type": "str"},
-           {"name": "CAPPN",   "addr": 0x0283, "length": 8, "type": "str"},
-           {"name": "SN",      "addr": 0x028B, "length": 8, "type": "str"},
-           {"name": "PCBVER",  "addr": 0x0293, "length": 8, "type": "str"},
-           {"name": "MFDATE",  "addr": 0x029B, "length": 8, "type": "str"},
-           {"name": "ENDUSR",  "addr": 0x02A3, "length": 8, "type": "str"},
-           {"name": "PCA",     "addr": 0x02AB, "length": 8, "type": "str"},
-           {"name": "CINT",    "addr": 0x02B3, "length": 1, "type": "int"}]
-EEPROM_REG_ADDRL = 0        # EEPROM register of ADDRESS LOW
-EEPROM_REG_ADDRH = 1        # EEPROM register of ADDRESS HIGH
-EEPROM_REG_RWDATA = 2       # EEPROM register of Data to read and write
-DUTLIST = range(1, 2)       # define the list to be tested
-
-CHARGE = 0
-DISCHARGE = 1
 
 # IMPORT SELF-DEFINED MODULES AND GLOBAL_VIRIABLE
 try:
@@ -50,7 +15,7 @@ except ImportError, e:
     print("[-] Module log_io is not found.")
     exit(0)
 try:
-    from i2c_adapter.i2c_adapter import DeviceAPI
+    from topaz.i2c_adapter import DeviceAPI, I2CConfig
     global_da = DeviceAPI(bitrate=400)
 except ImportError, e:
     logger.critical("[-] Module i2c_adapter is not found.")
@@ -58,7 +23,7 @@ except ImportError, e:
     exit(0)
 try:
     from topaz import data_io
-    global_db = data_io.DB(DBOPTION, DUTLIST)
+    global_db = data_io.DB(config.DBOPTION, DUTLIST)
     DUTSTATUS = data_io.DUTStatus
 except ImportError, e:
     logger.critical("[-] MongoDB is not found. Need install it first.")
@@ -73,28 +38,15 @@ except ImportError, e:
     exit(0)
 
 
-class LIMITS(object):
-    VCAP_LIMITS_HIGH = 130
-    TEMP_LIMITS_HIGH = 40
-    VCAP_THRESH_HIGH = 115
-    VCAP_THRESH_LOW = 50            # need confirm
-    MAX_DISCHANGE_TIME = 20         # seconds
-    MAX_CHARGE_TIME = 100           # seconds
-    POWER_CYCLE = 50                # for testing
-
-
-class I2CADDR(object):
-    DUT = 0x14
-
-
 def query_map(mymap, **kvargs):
     """method to search the map (the list of dict, [{}, {}])
     params: mymap:  the map to search
             kvargs: query conditon key=value, key should be in the dict.
     return: the dict match the query contdtion or None.
     """
+    r = mymap
     for k, v in kvargs.items():
-        r = filter(lambda row: row[k] == v,  mymap)
+        r = filter(lambda row: row[k] == v,  r)
     return r
 
 
