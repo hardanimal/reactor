@@ -176,7 +176,7 @@ class DeviceAPI(object):
         # Free bus
         api.py_aa_i2c_free_bus(self.handle)
 
-    def write(self, wdata, config=0):
+    def write(self, wdata, config=I2CConfig.AA_I2C_NO_FLAGS):
         '''write data to slave address
         data can be byte or array of byte
         '''
@@ -195,11 +195,11 @@ class DeviceAPI(object):
                                                      data_out)
         if(ret != 0):
             api.py_aa_i2c_free_bus(self.handle)
-            raise_aa_ex(ret)
+            raise_i2c_ex(ret)
         if(num_written != length):
             raise_aa_ex(-103)
 
-    def read(self):
+    def read(self, config=I2CConfig.AA_I2C_NO_FLAGS):
         '''read 1 byte from slave address
         '''
         # read 1 byte each time for easy
@@ -207,7 +207,7 @@ class DeviceAPI(object):
         data_in = array_u08(length)
         (ret, num_read) = api.py_aa_i2c_read_ext(self.handle,
                                                  self.slave_addr,
-                                                 I2CConfig.AA_I2C_NO_FLAGS,
+                                                 config,
                                                  length,
                                                  data_in)
         if(ret != 0):
