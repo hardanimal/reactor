@@ -14,7 +14,7 @@ from topaz.i2c_adapter import DeviceAPI
 
 def switch(portnum, slotnum):
     global_da.slave_addr = 0x70     # 0111 0000
-    wdata = [0x01]
+    wdata = [0x80]
     global_da.write(wdata)
 
 
