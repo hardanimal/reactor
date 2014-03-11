@@ -24,6 +24,12 @@ REG_OUTPUT = 0x02
 REG_CONFIG = 0x06
 
 
+def set_relay(chnum, slotnum, status=0):
+    """set relay for dut
+    """
+    pass
+
+
 def charge_relay(chnum, slotnum, open=True):
     global_da.slave_addr = 0x20  # 0100000
 
@@ -32,7 +38,12 @@ def charge_relay(chnum, slotnum, open=True):
     global_da.write(wdata)
 
     # set charge relay
-    wdata = [REG_OUTPUT, 0x01, 0x40]
+    wdata = [REG_OUTPUT, 0x00, 0x00]    # open all relay
+    global_da.write(wdata)
+
+    #wdata = [REG_OUTPUT, 0x01, 0x40]
+    wdata = [REG_OUTPUT, 0x55, 0x55]   # all charge
+    #wdata = [REG_OUTPUT, 0xaa, 0xaa]    # all dischage
     global_da.write(wdata)
 
 
