@@ -1,0 +1,34 @@
+G04 ================== begin FILE IDENTIFICATION RECORD ==================*
+G04 Layout Name:  F:/LOADING/PCB/LOAD_BOARD-ROA.brd*
+G04 Film Name:    PasteBOT*
+G04 File Format:  Gerber RS274X*
+G04 File Origin:  Cadence Allegro 16.3-p003*
+G04 Origin Date:  Mon Dec 16 19:33:29 2013*
+G04 *
+G04 Layer:  PIN/PASTEMASK_BOTTOM*
+G04 Layer:  PACKAGE GEOMETRY/PASTEMASK_BOTTOM*
+G04 Layer:  BOARD GEOMETRY/OUTLINE*
+G04 *
+G04 Offset:    (0.0000 0.0000)*
+G04 Mirror:    No*
+G04 Mode:      Positive*
+G04 Rotation:  0*
+G04 FullContactRelief:  No*
+G04 UndefLineWidth:     0.1270*
+G04 ================== end FILE IDENTIFICATION RECORD ====================*
+%FSLAX55Y55*MOMM*%
+%IR0*IPPOS*OFA0.00000B0.00000*MIA0B0*SFA1.00000B1.00000*%
+%ADD10C,1.*%
+%ADD11C,.127*%
+G75*
+%LPD*%
+G75*
+G54D10*
+X-400000Y-6150000D03*
+G54D11*
+G01X-2425000Y7150000D02*
+Y-7150000D01*
+X2425000D01*
+Y7150000D01*
+X-2425000D01*
+M02*
