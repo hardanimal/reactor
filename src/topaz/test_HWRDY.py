@@ -2,6 +2,11 @@
 # encoding: utf-8
 
 """test i2c hardware ready signal
+
+TCA9554A to read the HW_READY signal.
+    Address: 0x38 + channel number
+    Command Byte:
+        input = 0x00
 """
 
 from topaz.i2c_adapter import DeviceAPI
@@ -16,10 +21,10 @@ def read_hwrd():
 
     # read 1 byte
     val = global_da.read()
-    print val
+    return val
 
 
 if __name__ == "__main__":
     global_da = DeviceAPI(bitrate=400)
     global_da.open(portnum=0)
-    read_hwrd()
+    print read_hwrd()

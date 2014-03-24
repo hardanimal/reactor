@@ -27,6 +27,25 @@ REG_CONFIG = 0x06
 def set_relay(chnum, slotnum, status=0):
     """set relay for dut
     """
+    global_da.slave_addr = 0x20 + chnum     # 0100000
+
+    # config PIO to output
+    wdata = [REG_CONFIG, 0x00, 0x00]
+    global_da.write(wdata)
+
+    # set charge relay
+    wdata = [REG_OUTPUT, 0x00, 0x00]    # open all relay
+    global_da.write(wdata)
+
+    if(status==0):
+        # open relay
+        pass
+
+
+    if(slotnum > 3):
+        pass
+
+
     pass
 
 
@@ -42,8 +61,8 @@ def charge_relay(chnum, slotnum, open=True):
     global_da.write(wdata)
 
     #wdata = [REG_OUTPUT, 0x01, 0x40]
-    wdata = [REG_OUTPUT, 0x55, 0x55]   # all charge
-    #wdata = [REG_OUTPUT, 0xaa, 0xaa]    # all dischage
+    #wdata = [REG_OUTPUT, 0x55, 0x55]   # all charge
+    wdata = [REG_OUTPUT, 0xaa, 0xaa]    # all dischage
     global_da.write(wdata)
 
 
