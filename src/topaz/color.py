@@ -1,5 +1,4 @@
 import logging
-import sys
 import ctypes
 import os
 
@@ -130,27 +129,3 @@ class ColorizingStreamHandler(logging.StreamHandler):
             parts[0] = self.colorize(parts[0], record)
             message = '\n'.join(parts)
         return message
-
-
-def init_log(LOG_FILE):
-    if os.path.isfile(LOG_FILE):
-        os.remove(LOG_FILE)     # remove the log file
-
-    logger = logging.getLogger()
-    formatter = logging.Formatter('[ %(asctime)s ] %(levelname)s %(message)s')
-
-    # add stdout handler
-    # stdhl = logging.StreamHandler(sys.stdout)
-    stdhl = ColorizingStreamHandler(sys.stdout)
-    stdhl.setFormatter(formatter)
-    stdhl.setLevel(logging.DEBUG)   # print everything
-
-    # add file handler
-    hdlr = logging.FileHandler(LOG_FILE)
-    hdlr.setFormatter(formatter)
-    hdlr.setLevel(logging.WARNING)   # save WARNING, EEROR and CRITICAL to file
-
-    logger.addHandler(hdlr)
-    logger.addHandler(stdhl)
-    logger.setLevel(logging.DEBUG)
-    return logger

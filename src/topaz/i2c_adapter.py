@@ -8,6 +8,7 @@ And rewrite the I2C part of original API aardvark_py.py
 
 __version__ = "1.0.0"
 __author__ = "@boqiling"
+__all__ = ["I2CConfig", "Adapter"]
 
 import os
 import inspect
@@ -123,7 +124,7 @@ def array_s32 (n):  return array('i', '\0\0\0\0'*n)
 def array_s64 (n):  return array('L', '\0\0\0\0\0\0\0\0'*n)
 
 
-class DeviceAPI(object):
+class Adapter(object):
     '''USB-I2C Adapter API Class
     '''
 
@@ -175,6 +176,22 @@ class DeviceAPI(object):
         api.py_aa_i2c_bus_timeout(self.handle, self.bus_timeout)
         # Free bus
         api.py_aa_i2c_free_bus(self.handle)
+
+    def unique_id(self):
+        """Return the unique identifier of the device. The identifier is the
+        serial number you can find on the adapter without the dash. Eg. the
+        serial number 0012-345678 would be 12345678.
+        """
+        return api.py_aa_unique_id(self.handle)
+
+    def unique_id_str(self):
+        """Return the unique identifier. But unlike :func:`unique_id`, the ID
+        is returned as a string which has the format NNNN-MMMMMMM.
+        """
+        unique_id = self.unique_id()
+        id1 = unique_id / 1000000
+        id2 = unique_id % 1000000
+        return '%04d-%06d' % (id1, id2)
 
     def write(self, wdata, config=I2CConfig.AA_I2C_NO_FLAGS):
         '''write data to slave address
@@ -254,7 +271,7 @@ class DeviceAPI(object):
 
 
 if __name__ == "__main__":
-    da = DeviceAPI(bitrate=400)
+    da = Adapter(bitrate=400)
     da.open(portnum=0)
     da.slave_addr = 20
     print "Port: " + str(da.port)

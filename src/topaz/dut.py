@@ -3,21 +3,19 @@
 
 """dut burnin functions
 """
-import base
+import fsm
 import logging
-from multiprocessing import Queue
-import time
 
 
-class DUTStates(base.States):
+class DUTStates(fsm.States):
     charging = 0xA0
     discharging = 0xA1
 
 
-class DUT(base.IFunc):
+class DUT(fsm.IFunc):
     def __init__(self, dutid):
         self.dutid = dutid
-        self.queue = Queue()
+        super(DUT, self).__init__()
 
     def en_queue(self, state):
         self.queue.put(state)
@@ -31,10 +29,8 @@ class DUT(base.IFunc):
     def work(self, state):
         if(state == DUTStates.charging):
             logging.debug("dut" + str(self.dutid) + " in charging")
-            time.sleep(3)
         elif(state == DUTStates.discharging):
             logging.debug("dut" + str(self.dutid) + " in discharging")
-            time.sleep(3)
         else:
             logging.debug("unknow dut state, exit...")
             self.queue.put(DUTStates.EXIT)
@@ -59,8 +55,8 @@ if __name__ == "__main__":
     duts = []
     for i in range(128):
         dut = DUT(i)
-        fsm = base.StateMachine(dut)
-        fsm.run()
+        f = fsm.StateMachine(dut)
+        f.run()
         duts.append(dut)
     for dut in duts:
         dut.en_queue(DUTStates.INIT)

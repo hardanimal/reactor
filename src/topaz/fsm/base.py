@@ -10,7 +10,8 @@ class States(object):
     INIT = 0
     IDLE = 1
     WORK = 2
-    EXIT = 3
+    ERROR = 3
+    EXIT = 4
 
 
 class IFunc(object):
@@ -24,6 +25,9 @@ class IFunc(object):
         raise NotImplementedError
 
     def work(self):
+        raise NotImplementedError
+
+    def error(self):
         raise NotImplementedError
 
     def exit(self):
@@ -51,6 +55,8 @@ class StateMachine(object):
                 self.mf.init()
             elif(s == States.IDLE):
                 self.mf.idle()
+            elif(s == States.ERROR):
+                self.mf.error()
             elif(s == States.EXIT):
                 self.mf.exit()
                 self.exit = True

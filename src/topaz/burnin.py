@@ -2,40 +2,20 @@
 # encoding: utf-8
 import atexit
 import time
-import config
+from config import *
+import logging
 
-# GLOBAL_CONSTANT
-LOG_FILE = 'error.log'
 
 # IMPORT SELF-DEFINED MODULES AND GLOBAL_VIRIABLE
-try:
-    from topaz import log_io
-    logger = log_io.init_log(LOG_FILE)
-except ImportError, e:
-    print("[-] Module log_io is not found.")
-    exit(0)
-try:
-    from topaz.i2c_adapter import DeviceAPI, I2CConfig
-    global_da = DeviceAPI(bitrate=400)
-except ImportError, e:
-    logger.critical("[-] Module i2c_adapter is not found.")
-    logger.warning("[!] program terminated...")
-    exit(0)
-try:
-    from topaz import data_io
-    global_db = data_io.DB(config.DBOPTION, DUTLIST)
-    DUTSTATUS = data_io.DUTStatus
-except ImportError, e:
-    logger.critical("[-] MongoDB is not found. Need install it first.")
-    logger.warning("[!] program terminated...")
-    exit(0)
-try:
-    from topaz.timeout import timethis
-    from topaz.error import DUTERROR, DUTException
-except ImportError, e:
-    logger.critical("[-] self defined  modules are not found.")
-    logger.warning("[!] program terminated...")
-    exit(0)
+from topaz.i2c_adapter import Adapter
+global_da = Adapter(bitrate=400)
+
+from topaz import data_io
+global_db = data_io.DB(config.DBOPTION, DUTLIST)
+DUTSTATUS = config.DUTStatus
+
+from topaz.timeout import timethis
+from topaz.error import DUTERROR, DUTException
 
 
 def query_map(mymap, **kvargs):
@@ -102,8 +82,8 @@ def dut_info(dut):
         eep_name = eep["name"]
         dut.update({eep_name: readvpd_byname(global_da, eep_name)})
 
-    logger.info("[+] " + "Found " + dut["MODEL"] + " " +
-                dut["SN"] + " on " + str(dut["_id"]))
+    logging.info("[+] " + "Found " + dut["MODEL"] + " " +
+                 dut["SN"] + " on " + str(dut["_id"]))
 
     # read cycles, see if passed already
     if(dut["PWRCYCS"]) > LIMITS.POWER_CYCLE:
@@ -127,13 +107,13 @@ def dut_charge(cycle_data, start_s):
         temp = tmp["TEMP"]
         if(vcap > LIMITS.VCAP_LIMITS_HIGH):
             # over charge voltage, fail
-            logger.error("[-]" + " over charge voltage: " + str(vcap))
+            logging.error("[-]" + " over charge voltage: " + str(vcap))
             raise DUTERROR.VCAP_HIGH
         if(temp > LIMITS.TEMP_LIMITS_HIGH):
             # over temperature, fail
-            logger.error("[-]" + " over temperature: " + str(temp))
+            logging.error("[-]" + " over temperature: " + str(temp))
             raise DUTERROR.TEMP_HIGH
-        logger.info("[+] " + " VCAP: " + str(vcap) + " TIME: " + str(curr_s))
+        logging.info("[+] " + " VCAP: " + str(vcap) + " TIME: " + str(curr_s))
         time.sleep(2)
 
 
@@ -154,13 +134,13 @@ def dut_discharge(cycle_data, start_s):
         temp = tmp["TEMP"]
         if(vcap > LIMITS.VCAP_LIMITS_HIGH):
             # over charge voltage, fail
-            logger.error("[-]" + " over charge voltage: " + str(vcap))
+            logging.error("[-]" + " over charge voltage: " + str(vcap))
             raise DUTERROR.VCAP_HIGH
         if(temp > LIMITS.TEMP_LIMITS_HIGH):
             # over temperature, fail
-            logger.error("[-]" + " over temperature: " + str(temp))
+            logging.error("[-]" + " over temperature: " + str(temp))
             raise DUTERROR.TEMP_HIGH
-        logger.info("[+] " + " VCAP: " + str(vcap) + " TIME: " + str(curr_s))
+        logging.info("[+] " + " VCAP: " + str(vcap) + " TIME: " + str(curr_s))
         time.sleep(2)
 
 
@@ -212,7 +192,7 @@ def shutdown():
     """function when exit, exception."""
     global_da.close()
     global_db.close()
-    logger.warning("[!] program shutdown...")
+    logging.warning("[!] program shutdown...")
 
 
 def loop(dutnum):
@@ -227,7 +207,7 @@ def loop(dutnum):
     # read hwready signal
     r = HWReady(dutnum, timeout=5)
     if(r["timeout"]): raise DUTERROR.HR_TIMEOUT
-    logger.debug(str(r))
+    logging.debug(str(r))
 
     # set testing
     dut["STATUS"] = DUTSTATUS.TESTING
@@ -236,12 +216,12 @@ def loop(dutnum):
     # read dut info
     r = dut_info(dut, timeout=2)
     if(r["timeout"]): raise DUTERROR.DI_TIMEOUT
-    logger.debug(str(r))
+    logging.debug(str(r))
 
     # charge
     curr_cycle = int(dut["PWRCYCS"]) + 1
-    logger.info("[+] DUT " + str(dutnum) +
-                " CYCLES: " + str(curr_cycle) + " is charging now")
+    logging.info("[+] DUT " + str(dutnum) +
+                 " CYCLES: " + str(curr_cycle) + " is charging now")
     c = {"NUM": curr_cycle, "TIME": []}     # temp dict for this cycle's list
     for reg in REG_MAP:
         c.update({reg["name"]: []})
@@ -254,15 +234,15 @@ def loop(dutnum):
             dut["CYCLES"].append(c)
         global_db.update(dut)
         raise DUTERROR.CH_TIMEOUT
-    logger.debug(str(r))
-    logger.info("[+] " + str(dutnum) + " is charged")     # debug
+    logging.debug(str(r))
+    logging.info("[+] " + str(dutnum) + " is charged")     # debug
 
     # discharge
     charge_relay(dutnum, open=True)
     discharge_relay(dutnum, open=False)
 
-    logger.info("[+] DUT " + str(dutnum) +
-                " CYCLES: " + str(curr_cycle) + " is discharging now")
+    logging.info("[+] DUT " + str(dutnum) +
+                 " CYCLES: " + str(curr_cycle) + " is discharging now")
     r = dut_discharge(c, start_s, timeout=LIMITS.MAX_DISCHANGE_TIME)
     if(r["timeout"]):
         if "CYCLES" in dut:
@@ -272,7 +252,7 @@ def loop(dutnum):
             dut["CYCLES"].append(c)
         global_db.update(dut)
         raise DUTERROR.DC_TIMEOUT
-    logger.info("[+] " + str(dutnum) + " is discharged")     # debug
+    logging.info("[+] " + str(dutnum) + " is discharged")     # debug
 
     if "CYCLES" in dut:
         dut["CYCLES"].append(c)
@@ -297,20 +277,20 @@ def main():
                 except DUTException, e:
                     if(e.code == DUTERROR.DUT_PASSED):
                         # make it pass
-                        logger.info("DUT " + str(i) + " " + str(e))
+                        logging.info("DUT " + str(i) + " " + str(e))
                         global_db.update_status(i, DUTSTATUS.PASSED, e.message)
                     elif(e.code == DUTERROR.HR_TIMEOUT):
                         # HW is not Ready, maybe blank board, skip it.
-                        logger.info("DUT " + str(i) + " " + str(e))
+                        logging.info("DUT " + str(i) + " " + str(e))
                         global_db.update_status(i, DUTSTATUS.BLANK, e.message)
                     else:
                         # make it fail
-                        logger.error("DUT " + str(i) + " " + str(e))
+                        logging.error("DUT " + str(i) + " " + str(e))
                         global_db.update_status(i, DUTSTATUS.FAILED, e.message)
                     continue
         power_12V_off()
     except Exception, e:
-        logger.error(str(e))
+        logging.error(str(e))
 
 
 if __name__ == "__main__":
