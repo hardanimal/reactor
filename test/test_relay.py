@@ -18,8 +18,9 @@ TCA9555 to control the relay:
 
 """
 
-from topaz.i2c_adapter import DeviceAPI
+from topaz.i2c_adapter import Adapter, I2CConfig
 
+REG_INPUT = 0x00
 REG_OUTPUT = 0x02
 REG_CONFIG = 0x06
 
@@ -80,8 +81,8 @@ def discharge_relay(dutnum, open=True):
 
 if __name__ == "__main__":
     # init
-    global_da = DeviceAPI(bitrate=400)
-    global_da.open(portnum=0)
+    global_da = Adapter(bitrate=400)
+    global_da.open(serialnumber=2237839440)
 
     import time
     charge_relay(0, 1)

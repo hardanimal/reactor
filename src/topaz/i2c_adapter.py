@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # encoding: utf-8
 
-"""i2c_adapter.py: API for aardvark i2c adapter.
+"""i2c_aapter.py: API for aardvark i2c aapter.
 the device can be found at http://www.totalphase.com/products/aardvark_i2cspi/
 And rewrite the I2C part of original API aardvark_py.py
 """
@@ -15,12 +15,14 @@ import inspect
 from array import array
 import imp
 import platform
+import logging
 
 ext = platform.system() == 'Windows' and '.dll' or '.so'
 dll_path = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 api = imp.load_dynamic('aardvark', dll_path + '/aardvark' + ext)
 
 DEFAULT_REG_VAL = 0xFF
+PORT_NOT_FREE = 0x8000
 
 I2C_STATUS_MAP = [{"msg": "AA_I2C_STATUS_OK", "code": 0},
                   {"msg": "AA_I2C_STATUS_BUS_ERROR", "code": 1},
@@ -125,13 +127,13 @@ def array_s64 (n):  return array('L', '\0\0\0\0\0\0\0\0'*n)
 
 
 class Adapter(object):
-    '''USB-I2C Adapter API Class
+    '''USB-I2C Aapter API Class
     '''
 
     def __init__(self, **kvargs):
         '''constructor
         '''
-        self.bitrate = kvargs.get('bitrate', 0)
+        self.bitrate = kvargs.get('bitrate', 400)
         self.bus_timeout = kvargs.get('timeout', 25)
         self.handle = 0
         self.slave_addr = 0
@@ -144,26 +146,59 @@ class Adapter(object):
         except Exception:
             pass
 
-    def open(self, portnum=0):
+    def find_devices(filter_in_use=True):
+        """Return a list of port numbers which can be used with :func:`open`.
+
+        If *filter_in_use* parameter is `True` devices which are already opened
+        will be filtered from the list. If set to `False`, the port numbers are
+        still included in the returned list and the user may get an
+        :class:`IOError` if the port number is used with :func:`open`.
+        """
+
+        # first fetch the number of attached devices, so we can create a buffer
+        # with the exact amount of entries. api expects array of u16
+        num_devices = api.py_aa_find_devices(0, array_u16(0))
+        assert num_devices > 0
+
+        devices = array_u16(num_devices)
+        num_devices = api.py_aa_find_devices(num_devices, devices)
+        assert num_devices > 0
+
+        del devices[num_devices:]
+
+        if filter_in_use:
+            devices = [d for d in devices if not d & PORT_NOT_FREE]
+        else:
+            devices = [d & ~PORT_NOT_FREE for d in devices]
+        return devices
+
+    def open(self, portnum=None, serialnumber=None):
         '''
-        find ports, and open the port with portnum,
+        find ports, and open the port with portnum or sn,
         config the aardvark tool params like bitrate, slave address etc,
         '''
-        # first, need find how many devices, set devices=0
-        total_port_num = api.py_aa_find_devices(0, array_u16(0))
-        # then, need find how many devices, set devices=total_port_num
-        # it's freaky here.
-        devices = array_u16(total_port_num)
-        total_port_num = api.py_aa_find_devices(total_port_num, devices)
-        if total_port_num <= 0:
-            raise_aa_ex(-600)
-        elif portnum >= total_port_num:
-            raise_aa_ex(-602)
-        else:
+        ports = self.find_devices()
+        logging.debug("find ports: " + str(ports))
+        self.port = None
+        if(serialnumber):
+            for port in ports:
+                handle = api.py_aa_open(port)
+                if(api.py_aa_unique_id(handle) == serialnumber):
+                    logging.debug("SN: " + str(api.py_aa_unique_id(handle)))
+                    self.port = port
+                    api.py_aa_close(handle)
+                    break
+                api.py_aa_close(handle)
+            if(self.port is None):
+                raise_aa_ex(-601)
+        elif(portnum):
             self.port = portnum
+        else:
+            self.port = 0
 
-        # open port
+        logging.debug("open: " + str(self.port))
         self.handle = api.py_aa_open(self.port)
+
         if(self.handle <= 0):
             raise_aa_ex(self.handle)
         # Ensure that the I2C subsystem is enabled
@@ -179,7 +214,7 @@ class Adapter(object):
 
     def unique_id(self):
         """Return the unique identifier of the device. The identifier is the
-        serial number you can find on the adapter without the dash. Eg. the
+        serial number you can find on the aapter without the ash. Eg. the
         serial number 0012-345678 would be 12345678.
         """
         return api.py_aa_unique_id(self.handle)
@@ -193,23 +228,23 @@ class Adapter(object):
         id2 = unique_id % 1000000
         return '%04d-%06d' % (id1, id2)
 
-    def write(self, wdata, config=I2CConfig.AA_I2C_NO_FLAGS):
-        '''write data to slave address
-        data can be byte or array of byte
+    def write(self, wata, config=I2CConfig.AA_I2C_NO_FLAGS):
+        '''write ata to slave address
+        ata can be byte or array of byte
         '''
-        if(type(wdata) == int):
-            data_out = array('B', [wdata])
+        if(type(wata) == int):
+            ata_out = array('B', [wata])
             length = 1
-        elif(type(wdata) == list):
-            data_out = array('B', wdata)
-            length = len(wdata)
+        elif(type(wata) == list):
+            ata_out = array('B', wata)
+            length = len(wata)
         else:
-            raise TypeError("i2c data to be written is not valid")
+            raise TypeError("i2c ata to be written is not valid")
         (ret, num_written) = api.py_aa_i2c_write_ext(self.handle,
                                                      self.slave_addr,
                                                      config,
                                                      length,
-                                                     data_out)
+                                                     ata_out)
         if(ret != 0):
             api.py_aa_i2c_free_bus(self.handle)
             raise_i2c_ex(ret)
@@ -221,41 +256,41 @@ class Adapter(object):
         '''
         # read 1 byte each time for easy
         length = 1
-        data_in = array_u08(length)
+        ata_in = array_u08(length)
         (ret, num_read) = api.py_aa_i2c_read_ext(self.handle,
                                                  self.slave_addr,
                                                  config,
                                                  length,
-                                                 data_in)
+                                                 ata_in)
         if(ret != 0):
             api.py_aa_i2c_free_bus(self.handle)
             raise_i2c_ex(ret)
         if(num_read != length):
             raise_aa_ex(-102)
-        val = data_in[0]
+        val = ata_in[0]
         return val
 
-    def write_reg(self, reg_addr, wdata):
+    def write_reg(self, reg_addr, wata):
         '''
-        Write data list to slave device
-        If write to slave device's register, data_list = [reg_addr, wdata]
+        Write ata list to slave device
+        If write to slave device's register, ata_list = [reg_addr, wata]
         reg_addr: register address offset
-        wdata: data to be write to SMBus register
+        wata: ata to be write to SMBus register
         '''
-        # data_out must be unsigned char
-        data_out = [reg_addr, wdata]
-        self.write(data_out)
+        # ata_out must be unsigned char
+        ata_out = [reg_addr, wata]
+        self.write(ata_out)
 
     def read_reg(self, reg_addr):
         '''
-        Read data from slave device's register
+        Read ata from slave device's register
         write the [reg_addr] to slave device first, then read back.
         reg_addr: register address offset
         '''
         val = DEFAULT_REG_VAL
         self.write(reg_addr, I2CConfig.AA_I2C_NO_STOP)
 
-        # read register data
+        # read register ata
         val = self.read()
         return val
 
@@ -271,14 +306,21 @@ class Adapter(object):
 
 
 if __name__ == "__main__":
-    da = Adapter(bitrate=400)
-    da.open(portnum=0)
-    da.slave_addr = 20
-    print "Port: " + str(da.port)
-    print "Handle: " + str(da.handle)
-    print "Slave: " + str(da.slave_addr)
-    print "Bitrate: " + str(da.bitrate)
-    print da.read_reg(0x05)
-    print da.read_reg(0x06)
-    print da.read_reg(0x08)
-    da.close()
+    sn1 = 2237839440
+    sn2 = 2237849511
+    a = Adapter(bitrate=400)
+    b = Adapter(bitrate=400)
+    a.open(serialnumber=sn1)
+    b.open(serialnumber=sn2)
+    print a.unique_id()
+    print b.unique_id()
+    #a.slave_addr = 20
+    #print "Port: " + str(a.port)
+    #print "Handle: " + str(a.handle)
+    #print "Slave: " + str(a.slave_addr)
+    #print "Bitrate: " + str(a.bitrate)
+    #print a.read_reg(0x05)
+    #print a.read_reg(0x06)
+    #print a.read_reg(0x08)
+    a.close()
+    b.close()
