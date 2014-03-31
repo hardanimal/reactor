@@ -18,6 +18,9 @@ class IFunc(object):
     def __init__(self):
         self.queue = Queue()
 
+    def en_queue(self, state):
+        self.queue.put(state)
+
     def init(self):
         raise NotImplementedError
 

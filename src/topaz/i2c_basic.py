@@ -3,13 +3,8 @@
 """ I2C basic functions for topaz VPD and registers
 """
 
-from topaz.i2c_adapter import Adapter
 import logging
 
-device1 = Adapter()
-device1.open(serialnumber=2237839440)
-device2 = Adapter()
-device2.open(serialnumber=2237849511)
 
 REG_MAP = [{"name": "READINESS", "addr": 0x04},
            {"name": "PGEMSTAT",  "addr": 0x05},
@@ -56,11 +51,12 @@ def query_map(mymap, **kvargs):
 
 def position(dutnum):
     chnum, slot = dutnum / 8, dutnum % 8
-    if(dutnum > 63):
-        device = device2
-    else:
-        device = device1
-    return device, chnum, slot
+    return chnum, slot
+
+
+def re_position(chnum, slot):
+    dutnum = chnum * 8 + slot
+    return dutnum
 
 
 def read_ee(device, addr):
@@ -109,32 +105,36 @@ def readreg_byname(device, reg_name):
     return device.read_reg(addr)
 
 
-def dut_info(dutnum):
+def dut_info(device, chnum, slot):
+    """method to read out EEPROM info from dut
+    return a dict.
+    """
     dut = {}
-    device, chnum, slot = position(dutnum)
     for eep in EEP_MAP:
         eep_name = eep["name"]
         dut.update({eep_name: readvpd_byname(device, eep_name)})
 
     logging.info("[+] " + "Found " + dut["MODEL"] + " " +
-                 dut["SN"] + " on " + str(dutnum))
+                 dut["SN"] + " on " + str(re_position(chnum, slot)))
     return dut
 
 
-def dut_reg(dutnum):
+def dut_reg(device, chnum, slot):
+    """method to read out registers info from dut
+    return a dict.
+    """
     dut = {}
-    device, chnum, slot = position(dutnum)
     for reg in REG_MAP:
         reg_name = reg["name"]
         dut.update({reg_name: readreg_byname(device, reg_name)})
 
-    logging.info("[+] " + " VCAP: " + str(dut["VCAP"]) +
+    logging.info("[+] " + str(re_position(chnum, slot)) +
+                 " VCAP: " + str(dut["VCAP"]) +
                  " TEMP: " + str(dut["TEMP"]))
     return dut
 
 
-def hwrd(dutnum):
-    device, chnum, slot = position(dutnum)
+def hwrd(device, chnum, slot):
     device.slave_addr = 0x38 + chnum
 
     # config PIO to input
@@ -151,13 +151,13 @@ def hwrd(dutnum):
         return False
 
 
-def set_relay(chnum, status=0):
+def set_relay(device, chnum, status=0):
     """set relay for dut
     """
     REG_OUTPUT = 0x02
     REG_CONFIG = 0x06
     dutnum = chnum * 8
-    device, chnum, slot = position(dutnum)
+    chnum, slot = position(dutnum)
     device.slave_addr = 0x20 + chnum     # 0100000
 
     # config PIO to output
@@ -178,12 +178,11 @@ def set_relay(chnum, status=0):
         device.write(wdata)
 
 
-def switch(dutnum):
+def switch(device, chnum, slot):
     """switch I2C ports by PCA9548A, only 1 channel is enabled.
        chnum(channel number): 0~7
        slotnum(slot number): 0~7
     """
-    device, chnum, slot = position(dutnum)
     device.slave_addr = 0x70 + chnum    # 0111 0000
     wdata = [0x01 << slot]
     device.write(wdata)
@@ -191,17 +190,23 @@ def switch(dutnum):
 
 if __name__ == "__main__":
     import time
-    set_relay(chnum=0, status=1)
+    from topaz.pyaardvark import Adapter
+
+    device = Adapter()
+    device.open(portnum=0)
+    channel = 0
+    set_relay(device, channel, status=1)
     time.sleep(5)
     for i in range(8):
-        if(hwrd(i)):
+        if(hwrd(device, channel, i)):
             try:
                 print str(i) + " is ready."
-                switch(i)
-                print dut_info(i)
-                print dut_reg(i)
+                switch(device, channel, i)
+                print dut_info(device, channel, i)
+                print dut_reg(device, channel, i)
             except Exception as e:
                 print(e)
         else:
             print str(i) + " is not ready"
-    #set_relay(chnum=0, status=0)
+    time.sleep(10)
+    set_relay(device, channel, status=0)

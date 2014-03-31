@@ -9,7 +9,7 @@ PCA9548A to control the I2C switch:
         en:   0  0  0  0  0  0  0  1
 """
 
-from topaz.i2c_adapter import DeviceAPI
+from topaz.pyaardvark import Adapter
 
 
 def switch(chnum, slotnum):
@@ -30,7 +30,7 @@ def test_dut():
 
 
 if __name__ == "__main__":
-    global_da = DeviceAPI(bitrate=400)
+    global_da = Adapter(bitrate=400)
     global_da.open(portnum=0)
     switch(0, 7)
     test_dut()

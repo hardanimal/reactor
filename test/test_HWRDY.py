@@ -9,7 +9,7 @@ TCA9554A to read the HW_READY signal.
         input = 0x00
 """
 
-from topaz.i2c_adapter import DeviceAPI
+from topaz.pyaardvark import Adapter
 
 
 def read_hwrd():
@@ -25,6 +25,6 @@ def read_hwrd():
 
 
 if __name__ == "__main__":
-    global_da = DeviceAPI(bitrate=400)
+    global_da = Adapter(bitrate=400)
     global_da.open(portnum=0)
     print read_hwrd()

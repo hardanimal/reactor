@@ -3,7 +3,7 @@
 
 """dut burnin functions
 """
-import fsm
+from topaz import fsm
 import logging
 
 
@@ -16,9 +16,6 @@ class DUT(fsm.IFunc):
     def __init__(self, dutid):
         self.dutid = dutid
         super(DUT, self).__init__()
-
-    def en_queue(self, state):
-        self.queue.put(state)
 
     def init(self):
         logging.debug("dut" + str(self.dutid) + " in init")
@@ -40,18 +37,6 @@ class DUT(fsm.IFunc):
 
 
 if __name__ == "__main__":
-    import sys
-
-    logger = logging.getLogger()
-    formatter = logging.Formatter('[ %(asctime)s ] %(levelname)s %(message)s')
-
-    # add stdout handler
-    stdhl = logging.StreamHandler(sys.stdout)
-    stdhl.setFormatter(formatter)
-    stdhl.setLevel(logging.DEBUG)   # print everything
-    logger.addHandler(stdhl)
-    logger.setLevel(logging.DEBUG)
-
     duts = []
     for i in range(128):
         dut = DUT(i)

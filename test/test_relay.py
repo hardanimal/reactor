@@ -18,7 +18,7 @@ TCA9555 to control the relay:
 
 """
 
-from topaz.i2c_adapter import Adapter, I2CConfig
+from topaz.pyaardvark import Adapter, I2CConfig
 
 REG_INPUT = 0x00
 REG_OUTPUT = 0x02
