@@ -32,19 +32,25 @@ class DUT(fsm.IFunc):
             logging.debug("unknow dut state, exit...")
             self.queue.put(DUTStates.EXIT)
 
+    def error(self):
+        logging.debug("dut" + str(self.dutid) + " error...")
+
     def exit(self):
         logging.debug("dut" + str(self.dutid) + " exit...")
 
 
 if __name__ == "__main__":
-    duts = []
-    for i in range(128):
+    process = []
+    for i in range(8):
         dut = DUT(i)
         f = fsm.StateMachine(dut)
         f.run()
-        duts.append(dut)
-    for dut in duts:
-        dut.en_queue(DUTStates.INIT)
-        dut.en_queue(DUTStates.charging)
-        dut.en_queue(DUTStates.discharging)
-        dut.en_queue(DUTStates.EXIT)
+        process.append(f)
+    for f in process:
+        f.en_queue(DUTStates.INIT)
+        f.en_queue(DUTStates.charging)
+        f.en_queue(DUTStates.discharging)
+        while(f.status.value != DUTStates.discharging):
+            print f.status.value
+            pass
+        f.en_queue(DUTStates.EXIT)

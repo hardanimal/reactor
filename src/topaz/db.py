@@ -15,7 +15,7 @@ class DB(object):
         self.dutrunning = self.db[dboption["collection_running"]]
         self.dutlist = dutlist  # a list of dut number [1, 2, 3..]
 
-    def init(self):
+    def setup(self):
         """cleanup dut running db, set all status to idle."""
         self.dutrunning.remove()  # delete the real time status
         for i in self.dutlist:
@@ -74,7 +74,7 @@ if __name__ == "__main__":
                     collection_running="dut_running",
                     collection_archive="dut_archive")
     db = DB(DBOPTION, [1])
-    db.init()
+    db.setup()
     mydict = db.fetch(1)
     mydict.update({"SN": "123"})
     db.update(mydict)

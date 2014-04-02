@@ -46,7 +46,6 @@ class DUTException(Exception):
 
 
 class DUTERROR(object):
-    DUT_PASSED = DUTException(code=0x00, message="PASSED")
     HR_TIMEOUT = DUTException(code=0x01, message="read HW_READY timeout")
     DI_TIMEOUT = DUTException(code=0x02, message="read DUT eeprom timeout")
     CH_TIMEOUT = DUTException(code=0x03, message="charge timeout")
