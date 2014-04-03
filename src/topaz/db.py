@@ -1,18 +1,27 @@
+#!/usr/bin/env python
+# encoding: utf-8
+"""database interface for topaz bi.
+"""
 from pymongo import MongoClient
+
+DBOPTION = dict(connectstring='mongodb://localhost:27017/',
+                db_name="topaz_bi",
+                collection_running="dut_running",
+                collection_archive="dut_archive")
 
 
 class DB(object):
     """class to access the mongodb, save, update and check status
     """
 
-    def __init__(self, dboption, dutlist):
-        self.client = MongoClient(dboption["connectstring"])
-        self.db = self.client[dboption["db_name"]]
+    def __init__(self, dutlist):
+        self.client = MongoClient(DBOPTION["connectstring"])
+        self.db = self.client[DBOPTION["db_name"]]
 
         # collection for DUTs archived
-        self.dutarchive = self.db[dboption["collection_archive"]]
+        self.dutarchive = self.db[DBOPTION["collection_archive"]]
         # collection for 128 running DUTs
-        self.dutrunning = self.db[dboption["collection_running"]]
+        self.dutrunning = self.db[DBOPTION["collection_running"]]
         self.dutlist = dutlist  # a list of dut number [1, 2, 3..]
 
     def setup(self):
@@ -48,7 +57,7 @@ class DB(object):
         """update dut["STATUS"]"""
         d = self.dutrunning.find_one({"_id": dutnum})
         d["STATUS"] = status
-        d["ERROR_MESSAGE"] = msg
+        d["MESSAGE"] = msg
         self.dutrunning.save(d)
 
     def archive(self):

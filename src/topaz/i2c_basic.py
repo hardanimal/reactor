@@ -3,9 +3,6 @@
 """ I2C basic functions for topaz VPD and registers
 """
 
-import logging
-
-
 REG_MAP = [{"name": "READINESS", "addr": 0x04},
            {"name": "PGEMSTAT",  "addr": 0x05},
            {"name": "TEMP",      "addr": 0x06},
@@ -113,9 +110,6 @@ def dut_info(device, chnum, slot):
     for eep in EEP_MAP:
         eep_name = eep["name"]
         dut.update({eep_name: readvpd_byname(device, eep_name)})
-
-    logging.info("[+] " + "Found " + dut["MODEL"] + " " +
-                 dut["SN"] + " on " + str(re_position(chnum, slot)))
     return dut
 
 
@@ -128,9 +122,6 @@ def dut_reg(device, chnum, slot):
         reg_name = reg["name"]
         dut.update({reg_name: readreg_byname(device, reg_name)})
 
-    logging.info("[+] " + str(re_position(chnum, slot)) +
-                 " VCAP: " + str(dut["VCAP"]) +
-                 " TEMP: " + str(dut["TEMP"]))
     return dut
 
 

@@ -7,6 +7,7 @@ from topaz import fsm
 from topaz.pyaardvark import Adapter
 from topaz.i2c_basic import set_relay, switch, hwrd, re_position
 from topaz.i2c_basic import dut_info, dut_reg
+from topaz.db import DB
 import logging
 import time
 
@@ -64,7 +65,9 @@ def process_check(device, ch_id):
             if(dut["PWRCYCS"] >= LIMITS.POWER_CYCLE):
                 dut["STATUS"] = DUTStatus.PASSED
                 dut["MESSAGE"] = "DUT PASSED."
-                logging.warning(str(dut["_id"]) + " passed.")
+                logging.warning(str(dut["_id"]) + " " + dut["SN"] + " passed.")
+            logging.info("[+] " + "Found " + dut["MODEL"] + " " +
+                        dut["SN"] + " on " + str(re_position(ch_id, i)))
             #logging.info(dut)
     set_relay(device, ch_id, status=DISCHARGE)
 
@@ -101,8 +104,11 @@ def process_charge(device, ch_id):
             if curr_cycle not in dut:
                 dut.update({curr_cycle: []})
             dut[curr_cycle].append(result)
+            display = "[+] " + str(re_position(ch_id, i)) + \
+                      " VCAP: " + str(vcap) + " TEMP: " + str(temp)
 
-            #logging.info(dut)
+            logging.info(display)
+        logging.info("=" * len(display))    # seperator for diaplay
         time.sleep(3)
 
 
@@ -139,7 +145,11 @@ def process_discharge(device, ch_id):
                 dut.update({curr_cycle: []})
             dut[curr_cycle].append(result)
 
-            #logging.info(dut)
+            display = "[+] " + str(re_position(ch_id, i)) + \
+                      " VCAP: " + str(vcap) + " TEMP: " + str(temp)
+
+            logging.info(display)
+        logging.info("=" * len(display))    # seperator for diaplay
         time.sleep(3)
 
 
@@ -166,18 +176,19 @@ class Channel(fsm.IFunc):
     def __init__(self, ch_id, device):
         self.ch_id = ch_id
         self.device = device
+        self.db = DB(range(re_position(ch_id, 0), 8))
         super(Channel, self).__init__()
 
     def init(self):
-        logging.debug("channel" + str(self.ch_id) + " in init")
+        logging.debug("channel " + str(self.ch_id) + " in init")
 
     def idle(self):
-        logging.debug("channel" + str(self.ch_id) + " in idle")
+        logging.debug("channel " + str(self.ch_id) + " in idle")
 
     def work(self, state):
         if(state == ChannelStates.charging):
             # CHARGING
-            logging.debug("channel" + str(self.ch_id) + " in charging")
+            logging.debug("channel " + str(self.ch_id) + " in charging")
             try:
                 process_charge(self.device, self.ch_id)
             except Exception as e:
@@ -186,7 +197,7 @@ class Channel(fsm.IFunc):
             self.queue.put(ChannelStates.discharging)
         elif(state == ChannelStates.discharging):
             # DISCHARGING
-            logging.debug("channel" + str(self.ch_id) + " in discharging")
+            logging.debug("channel " + str(self.ch_id) + " in discharging")
             try:
                 process_discharge(self.device, self.ch_id)
             except Exception as e:
@@ -195,7 +206,7 @@ class Channel(fsm.IFunc):
             self.queue.put(ChannelStates.postcheck)
         elif(state == ChannelStates.postcheck):
             # Post Check
-            logging.debug("channel" + str(self.ch_id) + " in post-check")
+            logging.debug("channel " + str(self.ch_id) + " in post-check")
             try:
                 finish = process_postcheck(self.ch_id)
                 if(finish):
@@ -207,7 +218,7 @@ class Channel(fsm.IFunc):
                 self.queue.put(ChannelStates.IDLE)
         elif(state == ChannelStates.precheck):
             # Pre Check
-            logging.debug("channel" + str(self.ch_id) + " in pre-check")
+            logging.debug("channel " + str(self.ch_id) + " in pre-check")
             try:
                 process_check(self.device, self.ch_id)
             except Exception as e:
@@ -223,7 +234,7 @@ class Channel(fsm.IFunc):
             self.queue.put(ChannelStates.EXIT)
 
     def error(self):
-        logging.debug("channel" + str(self.ch_id) + " in error")
+        logging.debug("channel " + str(self.ch_id) + " in error")
         try:
             set_relay(self.device, self.ch_id, status=DISCHARGE)
         except:
@@ -232,7 +243,7 @@ class Channel(fsm.IFunc):
 
     def exit(self):
         self.device.close()
-        logging.debug("channel" + str(self.ch_id) + " in exit...")
+        logging.debug("channel " + str(self.ch_id) + " in exit...")
 
 
 if __name__ == "__main__":
@@ -244,15 +255,11 @@ if __name__ == "__main__":
     while(not finish):
         # start one cycle
         f.en_queue(ChannelStates.run)
-        print("start run")
         time.sleep(1)   # wait for the process to run, refresh the status.
         # wait for this cycle to finish
-        logging.error(f.status.value)
         while((f.status.value != ChannelStates.IDLE) and
               (f.status.value != ChannelStates.EXIT)):
             # check if the channle has finished burnin
-            logging.error(f.status.value)
             time.sleep(5)
         if(f.status.value == ChannelStates.EXIT):
             finish = True
-    print("finish.")
