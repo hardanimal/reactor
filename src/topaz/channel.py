@@ -10,52 +10,16 @@ from topaz.i2c_basic import dut_info, dut_reg
 from topaz.db import DB
 import logging
 import time
-
-DEVICE_LIST = [2237839440,
-               2237839440,
-               2237839440,
-               2237839440,
-               2237839440,
-               2237839440,
-               2237839440,
-               2237839440,
-               2237849511,
-               2237849511,
-               2237849511,
-               2237849511,
-               2237849511,
-               2237849511,
-               2237849511,
-               2237849511]
-
-CHARGE = 1
-DISCHARGE = 0
+from config import CHARGE, DISCHARGE, SLOTNUM
+from config import DUTStatus, LIMITS, DEVICE_LIST, DELAY
 
 
-class DUTStatus(object):
-    IDLE = 1        # dut is waiting for burn in
-    BLANK = 2       # dut is not inserted in the slot
-    TESTING = 3     # dut is in burn in
-    FAILED = 4      # dut has failed in burn in
-    PASSED = 5      # dut has passed in burn in
-
-
-class LIMITS(object):
-    VCAP_LIMITS_HIGH = 130
-    TEMP_LIMITS_HIGH = 40
-    VCAP_THRESH_HIGH = 115
-    VCAP_THRESH_LOW = 50            # need confirm
-    MAX_DISCHANGE_TIME = 20         # seconds
-    MAX_CHARGE_TIME = 100           # seconds
-    POWER_CYCLE = 50                # for testing
-
-
-def process_check(device, ch_id):
+def process_check(device, db, ch_id):
     set_relay(device, ch_id, status=CHARGE)
-    time.sleep(5)       # wait for device to be ready
-    for i in range(8):
+    time.sleep(DELAY.POWERON)       # wait for device to be ready
+    for i in range(SLOTNUM):
         dut_id = re_position(ch_id, i)
-        dut = {"_id": dut_id}    # TODO fetch from db by dut_id
+        dut = db.fetch(dut_id)
         if(not hwrd(device, ch_id, i)):
             logging.debug(str(dut_id) + " is not ready.")
             dut["status"] = DUTStatus.BLANK
@@ -67,22 +31,23 @@ def process_check(device, ch_id):
                 dut["MESSAGE"] = "DUT PASSED."
                 logging.warning(str(dut["_id"]) + " " + dut["SN"] + " passed.")
             logging.info("[+] " + "Found " + dut["MODEL"] + " " +
-                        dut["SN"] + " on " + str(re_position(ch_id, i)))
-            #logging.info(dut)
+                         dut["SN"] + " " + str(dut["PWRCYCS"]) + " on "
+                         + str(re_position(ch_id, i)))
+        db.update(dut)
     set_relay(device, ch_id, status=DISCHARGE)
 
 
-def process_charge(device, ch_id):
+def process_charge(device, db, ch_id):
     set_relay(device, ch_id, status=CHARGE)
     start_s = time.time()
     finish = False
     while(not finish):
         finish = True
-        for i in range(8):
+        for i in range(SLOTNUM):
             switch(device, ch_id, i)
 
             dut_id = re_position(ch_id, i)
-            dut = {"_id": dut_id, "PWRCYCS": 1}  # TODO fetch from db by dut_id
+            dut = db.fetch(dut_id)
             result = dut_reg(device, ch_id, i)
             result.update({"TIME": time.time()-start_s})
             finish &= (result["VCAP"] >= LIMITS.VCAP_THRESH_HIGH)
@@ -108,21 +73,22 @@ def process_charge(device, ch_id):
                       " VCAP: " + str(vcap) + " TEMP: " + str(temp)
 
             logging.info(display)
+            db.update(dut)
         logging.info("=" * len(display))    # seperator for diaplay
-        time.sleep(3)
+        time.sleep(DELAY.READCYCLE)
 
 
-def process_discharge(device, ch_id):
+def process_discharge(device, db, ch_id):
     set_relay(device, ch_id, status=DISCHARGE)
     start_s = time.time()
     finish = False
     while(not finish):
         finish = True
-        for i in range(8):
+        for i in range(SLOTNUM):
             switch(device, ch_id, i)
 
             dut_id = re_position(ch_id, i)
-            dut = {"_id": dut_id, "PWRCYCS": 1}  # TODO fetch from db by dut_id
+            dut = db.fetch(dut_id)
             result = dut_reg(device, ch_id, i)
             result.update({"TIME": time.time()-start_s})
             finish &= (result["VCAP"] <= LIMITS.VCAP_THRESH_LOW)
@@ -149,13 +115,18 @@ def process_discharge(device, ch_id):
                       " VCAP: " + str(vcap) + " TEMP: " + str(temp)
 
             logging.info(display)
+            db.update(dut)
         logging.info("=" * len(display))    # seperator for diaplay
-        time.sleep(3)
+        time.sleep(DELAY.READCYCLE)
 
 
-def process_postcheck(ch_id):
-    # check if duts on ch_id are all idle.
-    return False
+def process_postcheck(db, ch_id):
+    for i in range(SLOTNUM):
+        dut_id = re_position(ch_id, i)
+        dut = db.fetch(dut_id)
+        if(dut["STATUS"] == DUTStatus.IDLE):
+            return False
+    return True
 
 
 def channle_open(ch_id, device_id):
@@ -176,7 +147,7 @@ class Channel(fsm.IFunc):
     def __init__(self, ch_id, device):
         self.ch_id = ch_id
         self.device = device
-        self.db = DB(range(re_position(ch_id, 0), 8))
+        self.db = DB(range(re_position(ch_id, 0), SLOTNUM))
         super(Channel, self).__init__()
 
     def init(self):
@@ -190,7 +161,7 @@ class Channel(fsm.IFunc):
             # CHARGING
             logging.debug("channel " + str(self.ch_id) + " in charging")
             try:
-                process_charge(self.device, self.ch_id)
+                process_charge(self.device, self.db, self.ch_id)
             except Exception as e:
                 logging.error(e)
                 self.queue.put(ChannelStates.ERROR)
@@ -199,7 +170,7 @@ class Channel(fsm.IFunc):
             # DISCHARGING
             logging.debug("channel " + str(self.ch_id) + " in discharging")
             try:
-                process_discharge(self.device, self.ch_id)
+                process_discharge(self.device, self.db, self.ch_id)
             except Exception as e:
                 logging.error(e)
                 self.queue.put(ChannelStates.ERROR)
@@ -208,7 +179,7 @@ class Channel(fsm.IFunc):
             # Post Check
             logging.debug("channel " + str(self.ch_id) + " in post-check")
             try:
-                finish = process_postcheck(self.ch_id)
+                finish = process_postcheck(self.db, self.ch_id)
                 if(finish):
                     self.queue.put(ChannelStates.EXIT)
             except Exception as e:
@@ -220,7 +191,7 @@ class Channel(fsm.IFunc):
             # Pre Check
             logging.debug("channel " + str(self.ch_id) + " in pre-check")
             try:
-                process_check(self.device, self.ch_id)
+                process_check(self.device, self.db, self.ch_id)
             except Exception as e:
                 logging.error(e)
                 self.queue.put(ChannelStates.ERROR)
@@ -243,6 +214,7 @@ class Channel(fsm.IFunc):
 
     def exit(self):
         self.device.close()
+        self.db.close()
         logging.debug("channel " + str(self.ch_id) + " in exit...")
 
 
@@ -263,3 +235,5 @@ if __name__ == "__main__":
             time.sleep(5)
         if(f.status.value == ChannelStates.EXIT):
             finish = True
+        # wait the PGEM PowerCycle number change, stupid.
+        time.sleep(360)
