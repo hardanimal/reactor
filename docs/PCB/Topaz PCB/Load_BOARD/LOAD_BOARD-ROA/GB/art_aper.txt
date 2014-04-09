@@ -1,0 +1,56 @@
+
+INPUT-UNITS     INCHES
+
+WHEEL     1
+
+CIRCLE       31.4961            D10
+CIRCLE      291.3386            D11
+CIRCLE       39.3701            D12
+CIRCLE       98.4252            D13
+LINE        137.7953            D14
+OBLONG      137.7953  177.1654   0.00000  D15
+OBLONG      177.1654  137.7953   0.00000  D16
+CIRCLE       78.7402            D17
+LINE         78.7402            D18
+OBLONG      157.4803   78.7402   0.00000  D19
+OBLONG       78.7402  157.4803   0.00000  D20
+RECTANGLE    62.9882   86.6102   0.00000  D21
+RECTANGLE    86.6102   62.9882   0.00000  D22
+RECTANGLE    53.1496   37.4016   0.00000  D23
+RECTANGLE    37.4016   53.1496   0.00000  D24
+RECTANGLE    35.4291   29.5315   0.00000  D25
+RECTANGLE    29.5315   35.4291   0.00000  D26
+RECTANGLE    78.7402  118.1102   0.00000  D27
+RECTANGLE   118.1102   78.7402   0.00000  D28
+RECTANGLE    31.4961   59.0551   0.00000  D29
+RECTANGLE    59.0551   31.4961   0.00000  D30
+CIRCLE      177.1654            D31
+CIRCLE       86.6142            D32
+CIRCLE      157.4803            D33
+LINE              26            D34
+OBLONG            26        60   0.00000  D35
+OBLONG            60        26   0.00000  D36
+CIRCLE            26            D37
+LINE              30            D38
+OBLONG            30        64   0.00000  D39
+OBLONG            64        30   0.00000  D40
+CIRCLE            14            D41
+SQUARE       62.9921   0.00000            D42
+RECTANGLE    23.6181   62.9882   0.00000  D43
+RECTANGLE    62.9882   23.6181   0.00000  D44
+CIRCLE       62.9921            D45
+LINE               6            D46
+LINE              10            D47
+LINE               1            D48
+LINE               5            D49
+LINE               3            D50
+LINE               4            D51
+LINE               8            D52
+LINE              25            D53
+LINE          0.0394            D54
+LINE          3.9409            D55
+LINE          19.685            D56
+LINE          9.8425            D57
+LINE         31.4961            D58
+LINE               7            D59
+

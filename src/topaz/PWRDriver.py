@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+# encoding: utf-8
+
 '''
 Module Name:    PWRDriver.py
 Author(s):      PZHO
@@ -191,10 +194,8 @@ class PowerSupplyDevice(object):
             raise Exception("Measure current exception")
 
 
-
-
 def main():
-    PS=PowerSupplyDevice()
+    PS = PowerSupplyDevice()
     PS.open()
     PS.openChannel()
     PS.setVoltage(12)
@@ -203,6 +204,7 @@ def main():
     print PS.measureVolt()
     print PS.QueryState()
     #print PS.measureCurrent()
+
 
 if __name__ == '__main__':
     main()

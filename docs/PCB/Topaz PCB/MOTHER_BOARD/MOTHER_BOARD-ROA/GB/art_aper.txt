@@ -1,0 +1,20 @@
+
+INPUT-UNITS     INCHES
+
+WHEEL     1
+
+CIRCLE      291.3386            D10
+CIRCLE       39.3701            D11
+CIRCLE      314.9606            D12
+SQUARE       62.9921   0.00000            D13
+CIRCLE      157.4803            D14
+CIRCLE       62.9921            D15
+LINE               6            D16
+LINE              10            D17
+LINE               5            D18
+LINE          9.8425            D19
+LINE               4            D20
+LINE               8            D21
+LINE              25            D22
+LINE               7            D23
+
