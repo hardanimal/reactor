@@ -18,76 +18,92 @@ TCA9555 to control the relay:
 
 """
 
-from topaz.pyaardvark import Adapter, I2CConfig
 
-REG_INPUT = 0x00
-REG_OUTPUT = 0x02
-REG_CONFIG = 0x06
+def position(dutnum):
+    chnum, slot = dutnum / 8, dutnum % 8
+    return chnum, slot
 
 
-def set_relay(chnum, slotnum, status=0):
+def set_relay(device, chnum, matrix, status=0):
     """set relay for dut
     """
-    global_da.slave_addr = 0x20 + chnum     # 0100000
+    REG_OUTPUT = 0x02
+    REG_CONFIG = 0x06
+    dutnum = chnum * 8
+    chnum, slot = position(dutnum)
+    device.slave_addr = 0x20 + chnum     # 0100000
 
     # config PIO to output
     wdata = [REG_CONFIG, 0x00, 0x00]
-    global_da.write(wdata)
+    device.write(wdata)
 
     # set charge relay
     wdata = [REG_OUTPUT, 0x00, 0x00]    # open all relay
-    global_da.write(wdata)
+    device.write(wdata)
 
-    if(status==0):
-        # open relay
-        pass
-
-
-    if(slotnum > 3):
-        pass
-
-
-    pass
-
-
-def charge_relay(chnum, slotnum, open=True):
-    global_da.slave_addr = 0x20  # 0100000
-
-    # config PIO to output
-    wdata = [REG_CONFIG, 0x00, 0x00]
-    global_da.write(wdata)
-
-    # set charge relay
-    wdata = [REG_OUTPUT, 0x00, 0x00]    # open all relay
-    global_da.write(wdata)
-
-    #wdata = [REG_OUTPUT, 0x01, 0x40]
-    #wdata = [REG_OUTPUT, 0x55, 0x55]   # all charge
-    wdata = [REG_OUTPUT, 0xaa, 0xaa]    # all dischage
-    global_da.write(wdata)
+    if(status == 0):
+        # discharge
+        high, low = bitop_discharge(matrix)
+        wdata = [REG_OUTPUT, low, high]    # all discharge
+        device.write(wdata)
+    else:
+        # charge
+        high, low = bitop_charge(matrix)
+        wdata = [REG_OUTPUT, low, high]    # all charge
+        device.write(wdata)
 
 
-def discharge_relay(dutnum, open=True):
-    global_da.slave_addr = 0x20  # 0100000
+def bitop_discharge(data):
+    # discharge
+    high = (data & 0xF0) >> 4
+    low = data & 0x0F
+    RELAY03 = 0x0
+    #RELAY47 = 0xAA
+    RELAY47 = 0x0
+    for i in range(4):
+        b = high & 0x01
+        b = b << (i*2 + 1)
 
-    # config PIO to output
-    wdata = [REG_CONFIG, 0x00, 0x00]
-    global_da.write(wdata)
+        a = low & 0x01
+        a = a << (i*2 + 1)
 
-    # set charge relay
-    wdata = [REG_OUTPUT, 0x02, 0x80]
-    global_da.write(wdata)
+        RELAY47 += b
+        RELAY03 += a
+        high = high >> 1
+        low = low >> 1
+
+    return RELAY47, RELAY03
+
+
+def bitop_charge(data):
+    # charge
+    high = (data & 0xF0) >> 4
+    low = data & 0x0F
+    RELAY03 = 0x0
+    #RELAY47 = 0xAA
+    RELAY47 = 0x0
+    for i in range(4):
+        b = high & 0x01
+        b = b << (i*2)
+
+        a = low & 0x01
+        a = a << (i*2)
+
+        RELAY47 += b
+        RELAY03 += a
+        high = high >> 1
+        low = low >> 1
+
+    return RELAY47, RELAY03
 
 
 if __name__ == "__main__":
+    from topaz.pyaardvark import Adapter
     # init
     global_da = Adapter(bitrate=400)
     global_da.open(serialnumber=2237839440)
 
-    import time
-    charge_relay(0, 1)
-    #time.sleep(30)
-    #discharge_relay(1)
+    set_relay(global_da, 0, 0x00, status=1)
 
     # close
     global_da.close()
