@@ -8,10 +8,10 @@ from topaz.pyaardvark import Adapter
 from topaz.i2c_basic import set_relay, switch, hwrd, re_position
 from topaz.i2c_basic import dut_info, dut_reg
 from topaz.db import DB
+from topaz.config import CHARGE, DISCHARGE, SLOTNUM
+from topaz.config import DUTStatus, LIMITS, DEVICE_LIST, DELAY
 import logging
 import time
-from config import CHARGE, DISCHARGE, SLOTNUM
-from config import DUTStatus, LIMITS, DEVICE_LIST, DELAY
 
 
 def process_check(device, db, ch_id):
@@ -235,5 +235,6 @@ if __name__ == "__main__":
             time.sleep(5)
         if(f.status.value == ChannelStates.EXIT):
             finish = True
-        # wait the PGEM PowerCycle number change, stupid.
-        time.sleep(360)
+        else:
+            # wait the PGEM PowerCycle number change, stupid.
+            time.sleep(360)

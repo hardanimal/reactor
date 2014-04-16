@@ -10,8 +10,9 @@ DBOPTION = dict(connectstring='mongodb://localhost:27017/',
 CHARGE = 1
 DISCHARGE = 0
 
-SLOTNUM = 8     # total slot on 1 channel
-CHANNUM = 8     # total channel on 1 rack
+SLOTNUM = 8         # total slot on 1 channel
+CHANNUM = 8         # total channel on 1 rack
+TOTALDUTS = 128     # total dut number
 
 
 class DUTStatus(object):

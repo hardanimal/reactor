@@ -1,21 +1,22 @@
 #!/usr/bin/env python
 # encoding: utf-8
 
-from flask import Flask, render_template, request
+from flask import Flask, render_template
 import json
-import random
-from pymongo import Connection
+from pymongo import MongoClient
+from topaz.config import DBOPTION
 
-databaseName = "TOPAZ"
-connection = Connection()
-db = connection[databaseName]
-status_runtime = db['statusruntime']
+client = MongoClient(DBOPTION["connectstring"])
+db = client[DBOPTION["db_name"]]
+status_runtime = db[DBOPTION["collection_running"]]
 
 app = Flask(__name__)
+
 
 @app.route('/')
 def index():
     return render_template('index.html')
+
 
 @app.route('/newstatus', methods=['GET', 'POST'])
 def newstatus():
@@ -56,7 +57,7 @@ if __name__ == "__main__":
 #         return json.dumps({"dutnum": dutnum,
 #                            "result": "fail"
 #                            })
-# 
+#
 # def return_info():
 #     status = {
 #               "SN" : ''.join(random.sample('zyxwvutsrqponmlkjihgfedcba', 8)),
