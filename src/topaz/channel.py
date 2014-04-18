@@ -12,18 +12,21 @@ from topaz.config import CHARGE, DISCHARGE, SLOTNUM
 from topaz.config import DUTStatus, LIMITS, DEVICE_LIST, DELAY
 import logging
 import time
+import sys
+import traceback
 
 
 def process_check(device, db, ch_id):
-    set_relay(device, ch_id, status=CHARGE)
+    """pre check"""
+    set_relay(device, ch_id, 0xFF, status=CHARGE)
     time.sleep(DELAY.POWERON)       # wait for device to be ready
+    matrix = hwrd(device, ch_id)
+    set_relay(device, ch_id, matrix, status=CHARGE)
     for i in range(SLOTNUM):
         dut_id = re_position(ch_id, i)
         dut = db.fetch(dut_id)
-        if(not hwrd(device, ch_id, i)):
-            logging.debug(str(dut_id) + " is not ready.")
-            dut["status"] = DUTStatus.BLANK
-        else:
+        if(matrix & (0x01 << i)):
+            # dut present
             switch(device, ch_id, i)
             dut.update(dut_info(device, ch_id, i))
             if(dut["PWRCYCS"] >= LIMITS.POWER_CYCLE):
@@ -33,17 +36,23 @@ def process_check(device, db, ch_id):
             logging.info("[+] " + "Found " + dut["MODEL"] + " " +
                          dut["SN"] + " " + str(dut["PWRCYCS"]) + " on "
                          + str(re_position(ch_id, i)))
+        else:
+            logging.debug(str(dut_id) + " is not ready.")
+            dut["status"] = DUTStatus.BLANK
         db.update(dut)
-    set_relay(device, ch_id, status=DISCHARGE)
+    set_relay(device, ch_id, matrix, status=DISCHARGE)
+    return matrix
 
 
-def process_charge(device, db, ch_id):
-    set_relay(device, ch_id, status=CHARGE)
+def process_charge(device, db, ch_id, matrix):
+    set_relay(device, ch_id, matrix, status=CHARGE)
     start_s = time.time()
     finish = False
     while(not finish):
         finish = True
         for i in range(SLOTNUM):
+            if(not matrix & (0x01 << i)):
+                continue
             switch(device, ch_id, i)
 
             dut_id = re_position(ch_id, i)
@@ -78,13 +87,16 @@ def process_charge(device, db, ch_id):
         time.sleep(DELAY.READCYCLE)
 
 
-def process_discharge(device, db, ch_id):
-    set_relay(device, ch_id, status=DISCHARGE)
+def process_discharge(device, db, ch_id, matrix):
+    set_relay(device, ch_id, matrix, status=DISCHARGE)
     start_s = time.time()
     finish = False
     while(not finish):
         finish = True
         for i in range(SLOTNUM):
+            if(not matrix & (0x01 << i)):
+                continue
+
             switch(device, ch_id, i)
 
             dut_id = re_position(ch_id, i)
@@ -147,7 +159,9 @@ class Channel(fsm.IFunc):
     def __init__(self, ch_id, device):
         self.ch_id = ch_id
         self.device = device
-        self.db = DB(range(re_position(ch_id, 0), SLOTNUM))
+        index = re_position(ch_id, 0)
+        self.db = DB(range(index, index + SLOTNUM))
+        self.matrix = 0x00
         super(Channel, self).__init__()
 
     def init(self):
@@ -161,18 +175,28 @@ class Channel(fsm.IFunc):
             # CHARGING
             logging.debug("channel " + str(self.ch_id) + " in charging")
             try:
-                process_charge(self.device, self.db, self.ch_id)
+                process_charge(self.device, self.db,
+                               self.ch_id, self.matrix)
             except Exception as e:
-                logging.error(e)
+                #logging.error(e)
+                exc_type, exc_value, exc_tb = sys.exc_info()
+                logging.error(repr(traceback.format_exception(exc_type,
+                                                              exc_value,
+                                                              exc_tb)))
                 self.queue.put(ChannelStates.ERROR)
             self.queue.put(ChannelStates.discharging)
         elif(state == ChannelStates.discharging):
             # DISCHARGING
             logging.debug("channel " + str(self.ch_id) + " in discharging")
             try:
-                process_discharge(self.device, self.db, self.ch_id)
+                process_discharge(self.device, self.db,
+                                  self.ch_id, self.matrix)
             except Exception as e:
-                logging.error(e)
+                #logging.error(e)
+                exc_type, exc_value, exc_tb = sys.exc_info()
+                logging.error(repr(traceback.format_exception(exc_type,
+                                                              exc_value,
+                                                              exc_tb)))
                 self.queue.put(ChannelStates.ERROR)
             self.queue.put(ChannelStates.postcheck)
         elif(state == ChannelStates.postcheck):
@@ -183,7 +207,11 @@ class Channel(fsm.IFunc):
                 if(finish):
                     self.queue.put(ChannelStates.EXIT)
             except Exception as e:
-                logging.error(e)
+                #logging.error(e)
+                exc_type, exc_value, exc_tb = sys.exc_info()
+                logging.error(repr(traceback.format_exception(exc_type,
+                                                              exc_value,
+                                                              exc_tb)))
                 self.queue.put(ChannelStates.ERROR)
             else:
                 self.queue.put(ChannelStates.IDLE)
@@ -191,9 +219,13 @@ class Channel(fsm.IFunc):
             # Pre Check
             logging.debug("channel " + str(self.ch_id) + " in pre-check")
             try:
-                process_check(self.device, self.db, self.ch_id)
+                self.matrix = process_check(self.device, self.db, self.ch_id)
             except Exception as e:
-                logging.error(e)
+                #logging.error(e)
+                exc_type, exc_value, exc_tb = sys.exc_info()
+                logging.error(repr(traceback.format_exception(exc_type,
+                                                              exc_value,
+                                                              exc_tb)))
                 self.queue.put(ChannelStates.ERROR)
             else:
                 self.queue.put(ChannelStates.charging)
@@ -207,7 +239,7 @@ class Channel(fsm.IFunc):
     def error(self):
         logging.debug("channel " + str(self.ch_id) + " in error")
         try:
-            set_relay(self.device, self.ch_id, status=DISCHARGE)
+            set_relay(self.device, self.ch_id, 0x00,  status=DISCHARGE)
         except:
             pass
         self.queue.put(ChannelStates.EXIT)
@@ -219,7 +251,7 @@ class Channel(fsm.IFunc):
 
 
 if __name__ == "__main__":
-    my_channel = channle_open(ch_id=0, device_id=DEVICE_LIST[0])
+    my_channel = channle_open(ch_id=6, device_id=DEVICE_LIST[0])
     f = fsm.StateMachine(my_channel)
     f.run()
 

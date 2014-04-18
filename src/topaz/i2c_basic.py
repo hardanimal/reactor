@@ -125,7 +125,67 @@ def dut_reg(device, chnum, slot):
     return dut
 
 
-def hwrd(device, chnum, slot):
+def bitop_discharge(data):
+    # discharge
+    high = (data & 0xF0) >> 4
+    low = data & 0x0F
+    RELAY03 = 0x0
+    #RELAY47 = 0xAA
+    RELAY47 = 0x0
+    for i in range(4):
+        b = high & 0x01
+        b = b << (i*2 + 1)
+
+        a = low & 0x01
+        a = a << (i*2 + 1)
+
+        RELAY47 += b
+        RELAY03 += a
+        high = high >> 1
+        low = low >> 1
+
+    return RELAY47, RELAY03
+
+
+def bitop_charge(data):
+    # charge
+    high = (data & 0xF0) >> 4
+    low = data & 0x0F
+    RELAY03 = 0x0
+    #RELAY47 = 0xAA
+    RELAY47 = 0x0
+    for i in range(4):
+        b = high & 0x01
+        b = b << (i*2)
+
+        a = low & 0x01
+        a = a << (i*2)
+
+        RELAY47 += b
+        RELAY03 += a
+        high = high >> 1
+        low = low >> 1
+
+    return RELAY47, RELAY03
+
+
+#def hwrd(device, chnum, slot):
+#    device.slave_addr = 0x38 + chnum
+#
+#    # config PIO to input
+#    wdata = [0x00, 0x00]
+#    device.write(wdata)
+#
+#    # read 1 byte
+#    val = device.read()
+#    # check 1 bit
+#    val &= 0x01 << slot
+#    if(val == 0):
+#        return True
+#    else:
+#        return False
+
+def hwrd(device, chnum):
     device.slave_addr = 0x38 + chnum
 
     # config PIO to input
@@ -134,15 +194,11 @@ def hwrd(device, chnum, slot):
 
     # read 1 byte
     val = device.read()
-    # check 1 bit
-    val &= 0x01 << slot
-    if(val == 0):
-        return True
-    else:
-        return False
+    val = (~ (val & 0xFF)) & 0xFF
+    return val
 
 
-def set_relay(device, chnum, status=0):
+def set_relay(device, chnum, matrix, status=0):
     """set relay for dut
     """
     REG_OUTPUT = 0x02
@@ -161,11 +217,13 @@ def set_relay(device, chnum, status=0):
 
     if(status == 0):
         # discharge
-        wdata = [REG_OUTPUT, 0xaa, 0xaa]    # all discharge
+        high, low = bitop_discharge(matrix)
+        wdata = [REG_OUTPUT, low, high]    # all discharge
         device.write(wdata)
     else:
         # charge
-        wdata = [REG_OUTPUT, 0x55, 0x55]    # all charge
+        high, low = bitop_charge(matrix)
+        wdata = [REG_OUTPUT, low, high]    # all charge
         device.write(wdata)
 
 
@@ -186,10 +244,15 @@ if __name__ == "__main__":
     device = Adapter()
     device.open(portnum=0)
     channel = 0
-    set_relay(device, channel, status=1)
+
+    # charge all
+    set_relay(device, channel, 0xFF, status=1)
     time.sleep(5)
+    # read hardware ready signal
+    matrix = hwrd(device, channel)
+    set_relay(device, channel, matrix, status=1)
     for i in range(8):
-        if(hwrd(device, channel, i)):
+        if(matrix & (0x01 << i)):
             try:
                 print str(i) + " is ready."
                 switch(device, channel, i)
@@ -200,4 +263,4 @@ if __name__ == "__main__":
         else:
             print str(i) + " is not ready"
     time.sleep(10)
-    set_relay(device, channel, status=0)
+    set_relay(device, channel, matrix, status=0)

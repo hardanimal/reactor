@@ -21,6 +21,7 @@ def read_hwrd():
 
     # read 1 byte
     val = global_da.read()
+    val = (~ (val & 0xFF)) & 0xFF
     return val
 
 
