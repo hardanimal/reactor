@@ -251,7 +251,13 @@ class Channel(fsm.IFunc):
 
 
 if __name__ == "__main__":
-    my_channel = channle_open(ch_id=6, device_id=DEVICE_LIST[0])
+    import argparse
+    parser = argparse.ArgumentParser(description="channel.py")
+    parser.add_argument('channel', action='store', help='channel to burnin')
+    args = parser.parse_args()
+    print args.channel
+
+    my_channel = channle_open(ch_id=int(args.channel)-1, device_id=DEVICE_LIST[0])
     f = fsm.StateMachine(my_channel)
     f.run()
 
