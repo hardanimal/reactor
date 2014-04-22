@@ -5,7 +5,7 @@ and control the burin in process on this channel
 """
 from topaz import fsm
 from topaz.pyaardvark import Adapter
-from topaz.i2c_basic import set_relay, switch, hwrd, re_position
+from topaz.i2c_basic import set_relay, switch, hwrd, re_position, deswitch
 from topaz.i2c_basic import dut_info, dut_reg
 from topaz.db import DB
 from topaz.config import CHARGE, DISCHARGE, SLOTNUM
@@ -40,6 +40,7 @@ def process_check(device, db, ch_id):
             logging.debug(str(dut_id) + " is not ready.")
             dut["STATUS"] = DUTStatus.BLANK
         db.update(dut)
+    deswitch(device, ch_id)
     set_relay(device, ch_id, matrix, status=DISCHARGE)
     return matrix
 
@@ -83,6 +84,7 @@ def process_charge(device, db, ch_id, matrix):
 
             logging.info(display)
             db.update(dut)
+        deswitch(device, ch_id)
         logging.info("=" * len(display))    # seperator for diaplay
         time.sleep(DELAY.READCYCLE)
 
@@ -128,6 +130,7 @@ def process_discharge(device, db, ch_id, matrix):
 
             logging.info(display)
             db.update(dut)
+        deswitch(device, ch_id)
         logging.info("=" * len(display))    # seperator for diaplay
         time.sleep(DELAY.READCYCLE)
 

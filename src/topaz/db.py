@@ -24,8 +24,9 @@ class DB(object):
 
     def setup(self):
         """cleanup dut running db, set all status to idle."""
-        self.dutrunning.remove()  # delete the real time status
+        #self.dutrunning.remove()  # delete the real time status
         for i in self.dutlist:
+            self.dutrunning.find_and_modify({"_id": i}, remove=True)
             d = {"_id": i, "STATUS": DUTStatus.IDLE}
             self.dutrunning.save(d)
 

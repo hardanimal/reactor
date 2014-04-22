@@ -237,6 +237,16 @@ def switch(device, chnum, slot):
     device.write(wdata)
 
 
+def deswitch(device, chnum):
+    """switch I2C ports by PCA9548A, only 1 channel is enabled.
+       chnum(channel number): 0~7
+       slotnum(slot number): 0~7
+    """
+    device.slave_addr = 0x70 + chnum    # 0111 0000
+    wdata = 0x00
+    device.write(wdata)
+
+
 if __name__ == "__main__":
     import time
     from topaz.pyaardvark import Adapter
@@ -262,5 +272,6 @@ if __name__ == "__main__":
                 print(e)
         else:
             print str(i) + " is not ready"
+    deswitch(device, channel)
     time.sleep(10)
     set_relay(device, channel, matrix, status=0)
