@@ -1,296 +1,39 @@
 #!/usr/bin/env python
 # encoding: utf-8
-import atexit
 import time
-from config import *
-import logging
+from topaz.channel import channel_open, ChannelStates
+from topaz import fsm
+from topaz.config import DEVICE_LIST
 
-
-# IMPORT SELF-DEFINED MODULES AND GLOBAL_VIRIABLE
-from topaz.i2c_adapter import Adapter
-global_da = Adapter(bitrate=400)
-
-from topaz import data_io
-global_db = data_io.DB(config.DBOPTION, DUTLIST)
-DUTSTATUS = config.DUTStatus
-
-from topaz.timeout import timethis
-from topaz.error import DUTERROR, DUTException
-
-
-def query_map(mymap, **kvargs):
-    """method to search the map (the list of dict, [{}, {}])
-    params: mymap:  the map to search
-            kvargs: query conditon key=value, key should be in the dict.
-    return: the dict match the query contdtion or None.
-    """
-    r = mymap
-    for k, v in kvargs.items():
-        r = filter(lambda row: row[k] == v,  r)
-    return r
-
-
-def read_ee(device, addr):
-    """method to read eeprom data,
-    first write low address byte to register EEPROM_REG_ADDRL,
-    then write high address byte to register EEPROM_REG_ADDRH,
-    then read the data from register EEPROM_REG_RWDATA.
-    params: device: I2C adapter device handle
-            addr:   eeprom address to read
-    return: value of addr in byte
-    """
-    device.write_reg(EEPROM_REG_ADDRL, addr & 0xFF)
-    device.write_reg(EEPROM_REG_ADDRH, (addr >> 8) & 0xFF)
-    val = device.read_reg(EEPROM_REG_RWDATA)
-    return val
-
-
-def readvpd_byname(device, eep_name):
-    """method to read eep_data according to eep_name
-    eep is one dict in eep_map, for example:
-    {"name": "CINT", "addr": 0x02B3, "length": 1, "type": "int"}
-    """
-    eep = query_map(EEP_MAP, name=eep_name)[0]     # eep is one dict in eep_map
-    start = eep["addr"]                 # start_address
-    length = eep["length"]              # length
-    typ = eep["type"]                   # type
-    datas = [read_ee(device, addr) for addr in range(start, (start + length))]
-    if(typ == "word"):
-        val = datas[0] + (datas[1] << 8)
-        return val
-    if(typ == "str"):
-        return ''.join(chr(i) for i in datas)
-    if(typ == "int"):
-        return datas[0]
-
-
-def readreg_byname(device, reg_name):
-    """method to read register data according to register name
-    reg is one dict in reg_map, for example:
-    {"name": "VCAP",      "addr": 0x08},
-    """
-    reg = query_map(REG_MAP, name=reg_name)[0]     # reg is one dict in reg_map
-    addr = reg["addr"]
-    return device.read_reg(addr)
-
-
-@timethis
-def dut_info(dut):
-    global_da.slave_addr = I2CADDR.DUT
-
-    for eep in EEP_MAP:
-        eep_name = eep["name"]
-        dut.update({eep_name: readvpd_byname(global_da, eep_name)})
-
-    logging.info("[+] " + "Found " + dut["MODEL"] + " " +
-                 dut["SN"] + " on " + str(dut["_id"]))
-
-    # read cycles, see if passed already
-    if(dut["PWRCYCS"]) > LIMITS.POWER_CYCLE:
-        raise DUTERROR.DUT_PASSED
-
-
-@timethis
-def dut_charge(cycle_data, start_s):
-    global_da.slave_addr = I2CADDR.DUT
-
-    tmp = {}
-    vcap = readreg_byname(global_da, "VCAP")
-    while(vcap < LIMITS.VCAP_THRESH_HIGH):    # charging
-        for reg in REG_MAP:
-            data = readreg_byname(global_da, reg["name"])
-            cycle_data[reg["name"]].append(data)
-            tmp.update({reg["name"]: data})
-        curr_s = time.time() - start_s
-        cycle_data["TIME"].append(curr_s)
-        vcap = tmp["VCAP"]
-        temp = tmp["TEMP"]
-        if(vcap > LIMITS.VCAP_LIMITS_HIGH):
-            # over charge voltage, fail
-            logging.error("[-]" + " over charge voltage: " + str(vcap))
-            raise DUTERROR.VCAP_HIGH
-        if(temp > LIMITS.TEMP_LIMITS_HIGH):
-            # over temperature, fail
-            logging.error("[-]" + " over temperature: " + str(temp))
-            raise DUTERROR.TEMP_HIGH
-        logging.info("[+] " + " VCAP: " + str(vcap) + " TIME: " + str(curr_s))
-        time.sleep(2)
-
-
-@timethis
-def dut_discharge(cycle_data, start_s):
-    global_da.slave_addr = I2CADDR.DUT
-
-    tmp = {}
-    vcap = readreg_byname(global_da, "VCAP")
-    while(vcap > LIMITS.VCAP_THRESH_LOW):    # charging
-        for reg in REG_MAP:
-            data = readreg_byname(global_da, reg["name"])
-            cycle_data[reg["name"]].append(data)
-            tmp.update({reg["name"]: data})
-        curr_s = time.time() - start_s
-        cycle_data["TIME"].append(curr_s)
-        vcap = tmp["VCAP"]
-        temp = tmp["TEMP"]
-        if(vcap > LIMITS.VCAP_LIMITS_HIGH):
-            # over charge voltage, fail
-            logging.error("[-]" + " over charge voltage: " + str(vcap))
-            raise DUTERROR.VCAP_HIGH
-        if(temp > LIMITS.TEMP_LIMITS_HIGH):
-            # over temperature, fail
-            logging.error("[-]" + " over temperature: " + str(temp))
-            raise DUTERROR.TEMP_HIGH
-        logging.info("[+] " + " VCAP: " + str(vcap) + " TIME: " + str(curr_s))
-        time.sleep(2)
-
-
-def switch_slot(dutnum):
-    """1~64   are in slot 1
-       65~128 are in slot 2
-    """
-    global_da.close()
-    if(dutnum <= 64):
-        global_da.open(portnum=0)  # slot 1
-    else:
-        global_da.open(portnum=1)  # slot 2
-
-
-def switch_brd(dutnum):
-    """dutnmum from 1 to 128.
-    current num = dutnum - 64
-    first switch from 1 to 8 channel
-    then, switch from 1 to 8 on 1 load board
-    """
-    pass
-
-
-def charge_relay(dutnum, open=True):
-    pass
-
-
-def discharge_relay(dutnum, open=True):
-    pass
-
-
-@timethis
-def HWReady(dutnum):
-    status = True
-    while(status is not True):
-        status = True
-    return status
-
-
-def power_12V_on():
-    pass
-
-
-def power_12V_off():
-    pass
-
-
-def shutdown():
-    """function when exit, exception."""
-    global_da.close()
-    global_db.close()
-    logging.warning("[!] program shutdown...")
-
-
-def loop(dutnum):
-    dut = global_db.fetch(dutnum)
-    switch_slot(dutnum)
-    switch_brd(dutnum)
-
-    # close charge relay
-    charge_relay(dutnum, open=False)
-    start_s = time.time()
-
-    # read hwready signal
-    r = HWReady(dutnum, timeout=5)
-    if(r["timeout"]): raise DUTERROR.HR_TIMEOUT
-    logging.debug(str(r))
-
-    # set testing
-    dut["STATUS"] = DUTSTATUS.TESTING
-    global_db.update(dut)
-
-    # read dut info
-    r = dut_info(dut, timeout=2)
-    if(r["timeout"]): raise DUTERROR.DI_TIMEOUT
-    logging.debug(str(r))
-
-    # charge
-    curr_cycle = int(dut["PWRCYCS"]) + 1
-    logging.info("[+] DUT " + str(dutnum) +
-                 " CYCLES: " + str(curr_cycle) + " is charging now")
-    c = {"NUM": curr_cycle, "TIME": []}     # temp dict for this cycle's list
-    for reg in REG_MAP:
-        c.update({reg["name"]: []})
-    r = dut_charge(c, start_s, timeout=LIMITS.MAX_CHARGE_TIME)
-    if(r["timeout"]):
-        if "CYCLES" in dut:
-            dut["CYCLES"].append(c)
-        else:
-            dut.update({"CYCLES": []})
-            dut["CYCLES"].append(c)
-        global_db.update(dut)
-        raise DUTERROR.CH_TIMEOUT
-    logging.debug(str(r))
-    logging.info("[+] " + str(dutnum) + " is charged")     # debug
-
-    # discharge
-    charge_relay(dutnum, open=True)
-    discharge_relay(dutnum, open=False)
-
-    logging.info("[+] DUT " + str(dutnum) +
-                 " CYCLES: " + str(curr_cycle) + " is discharging now")
-    r = dut_discharge(c, start_s, timeout=LIMITS.MAX_DISCHANGE_TIME)
-    if(r["timeout"]):
-        if "CYCLES" in dut:
-            dut["CYCLES"].append(c)
-        else:
-            dut.update({"CYCLES": []})
-            dut["CYCLES"].append(c)
-        global_db.update(dut)
-        raise DUTERROR.DC_TIMEOUT
-    logging.info("[+] " + str(dutnum) + " is discharged")     # debug
-
-    if "CYCLES" in dut:
-        dut["CYCLES"].append(c)
-    else:
-        dut.update({"CYCLES": []})
-        dut["CYCLES"].append(c)
-
-    # set IDLE
-    dut["STATUS"] = DUTSTATUS.IDLE
-    global_db.update(dut)
+i2c_adapter = Adapter()
+i2c_adapter.open(serialnumber=DEVICE_LIST[0])
 
 
 def main():
-    try:
-        atexit.register(shutdown)
-        global_db.init()
-        power_12V_on()
-        while not global_db.check_all_idle():
-            for i in DUTLIST:
-                try:
-                    loop(i)
-                except DUTException, e:
-                    if(e.code == DUTERROR.DUT_PASSED):
-                        # make it pass
-                        logging.info("DUT " + str(i) + " " + str(e))
-                        global_db.update_status(i, DUTSTATUS.PASSED, e.message)
-                    elif(e.code == DUTERROR.HR_TIMEOUT):
-                        # HW is not Ready, maybe blank board, skip it.
-                        logging.info("DUT " + str(i) + " " + str(e))
-                        global_db.update_status(i, DUTSTATUS.BLANK, e.message)
-                    else:
-                        # make it fail
-                        logging.error("DUT " + str(i) + " " + str(e))
-                        global_db.update_status(i, DUTSTATUS.FAILED, e.message)
-                    continue
-        power_12V_off()
-    except Exception, e:
-        logging.error(str(e))
+    channel_list = []
+    for channel_id in range(0, 8):
+        my_channel = channel_open(ch_id=channel_id, device=i2c_adapter)
+        f = fsm.StateMachine(my_channel)
+        f.run()
+        channel_list.append(f)
+
+    burnin_finish = False
+    while(not burnin_finish):
+        burnin_finish = True
+        for f in channel_list:
+            if(f.status.value == ChannelStates.EXIT):
+                # check if already finished.
+                burnin_finish &= True
+                continue
+            # start one cycle
+            f.en_queue(ChannelStates.run)
+            time.sleep(1)
+
+            # wait for this cycle to finish
+            while((f.status.value != ChannelStates.IDLE) and
+                  (f.status.value != ChannelStates.EXIT)):
+                # check if the channle has finished burnin
+                time.sleep(5)
 
 
 if __name__ == "__main__":

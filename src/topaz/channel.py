@@ -38,7 +38,7 @@ def process_check(device, db, ch_id):
                          + str(re_position(ch_id, i)))
         else:
             logging.debug(str(dut_id) + " is not ready.")
-            dut["status"] = DUTStatus.BLANK
+            dut["STATUS"] = DUTStatus.BLANK
         db.update(dut)
     set_relay(device, ch_id, matrix, status=DISCHARGE)
     return matrix
@@ -141,9 +141,7 @@ def process_postcheck(db, ch_id):
     return True
 
 
-def channle_open(ch_id, device_id):
-    device = Adapter()
-    device.open(serialnumber=device_id)
+def channel_open(ch_id, device):
     return Channel(ch_id, device)
 
 
@@ -220,6 +218,9 @@ class Channel(fsm.IFunc):
             logging.debug("channel " + str(self.ch_id) + " in pre-check")
             try:
                 self.matrix = process_check(self.device, self.db, self.ch_id)
+                if(self.matrix == 0x00):
+                    # all blank
+                    self.queue.put(ChannelStates.EXIT)
             except Exception as e:
                 #logging.error(e)
                 exc_type, exc_value, exc_tb = sys.exc_info()
@@ -245,13 +246,15 @@ class Channel(fsm.IFunc):
         self.queue.put(ChannelStates.EXIT)
 
     def exit(self):
-        self.device.close()
         self.db.close()
         logging.debug("channel " + str(self.ch_id) + " in exit...")
 
 
 if __name__ == "__main__":
-    my_channel = channle_open(ch_id=6, device_id=DEVICE_LIST[0])
+    i2c_adapter = Adapter()
+    i2c_adapter.open(serialnumber=DEVICE_LIST[0])
+
+    my_channel = channel_open(ch_id=6, device=i2c_adapter)
     f = fsm.StateMachine(my_channel)
     f.run()
 
