@@ -254,7 +254,12 @@ if __name__ == "__main__":
     i2c_adapter = Adapter()
     i2c_adapter.open(serialnumber=DEVICE_LIST[0])
 
-    my_channel = channel_open(ch_id=6, device=i2c_adapter)
+    import argparse
+    parser = argparse.ArgumentParser(description="channel.py")
+    parser.add_argument('channel', action='store', help='channel to burnin')
+    args = parser.parse_args()
+
+    my_channel = channel_open(ch_id=int(args.channel)-1, device=i2c_adapter)
     f = fsm.StateMachine(my_channel)
     f.run()
 

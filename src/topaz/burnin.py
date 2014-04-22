@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # encoding: utf-8
 import time
+from topaz.pyaardvark import Adapter
 from topaz.channel import channel_open, ChannelStates
 from topaz import fsm
 from topaz.config import DEVICE_LIST
