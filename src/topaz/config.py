@@ -28,9 +28,9 @@ class LIMITS(object):
     TEMP_LIMITS_HIGH = 40
     VCAP_THRESH_HIGH = 115
     VCAP_THRESH_LOW = 50            # need confirm
-    MAX_DISCHANGE_TIME = 20         # seconds
-    MAX_CHARGE_TIME = 100           # seconds
-    POWER_CYCLE = 50                # for testing
+    MAX_DISCHANGE_TIME = 50         # seconds
+    MAX_CHARGE_TIME = 150           # seconds
+    POWER_CYCLE = 150                # for testing
 
 
 class I2CADDR(object):

@@ -33,6 +33,10 @@ class IFunc(object):
     def exit(self):
         raise NotImplementedError
 
+    def empty(self):
+        for i in range(self.queue.qsize()):
+            self.queue.get()
+
 
 class StateMachine(object):
     def __init__(self, ifunc):
@@ -51,11 +55,6 @@ class StateMachine(object):
     def exit(self):
         self.empty()
         self.q.put(States.EXIT)
-
-    def empty(self):
-        self.q.close()
-        for i in range(self.q.qsize()):
-            self.q.get()
 
     def loop(self, s):
         while(not self.exit):

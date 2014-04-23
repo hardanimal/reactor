@@ -10,6 +10,7 @@ from topaz.i2c_basic import dut_info, dut_reg
 from topaz.db import DB
 from topaz.config import CHARGE, DISCHARGE, SLOTNUM
 from topaz.config import DUTStatus, LIMITS, DEVICE_LIST, DELAY
+from topaz.gauge import gauge
 import logging
 import time
 import sys
@@ -45,6 +46,7 @@ def process_check(device, db, ch_id):
     return matrix
 
 
+@gauge
 def process_charge(device, db, ch_id, matrix):
     set_relay(device, ch_id, matrix, status=CHARGE)
     start_s = time.time()
@@ -89,6 +91,7 @@ def process_charge(device, db, ch_id, matrix):
         time.sleep(DELAY.READCYCLE)
 
 
+@gauge
 def process_discharge(device, db, ch_id, matrix):
     set_relay(device, ch_id, matrix, status=DISCHARGE)
     start_s = time.time()
@@ -177,29 +180,35 @@ class Channel(fsm.IFunc):
             logging.debug("channel " + str(self.ch_id) + " in charging")
             try:
                 process_charge(self.device, self.db,
-                               self.ch_id, self.matrix)
+                               self.ch_id, self.matrix,
+                               timeout=LIMITS.MAX_CHARGE_TIME)
             except Exception as e:
                 #logging.error(e)
                 exc_type, exc_value, exc_tb = sys.exc_info()
                 logging.error(repr(traceback.format_exception(exc_type,
                                                               exc_value,
                                                               exc_tb)))
+                self.empty()    # clear states in queue
                 self.queue.put(ChannelStates.ERROR)
-            self.queue.put(ChannelStates.discharging)
+            else:
+                self.queue.put(ChannelStates.discharging)
         elif(state == ChannelStates.discharging):
             # DISCHARGING
             logging.debug("channel " + str(self.ch_id) + " in discharging")
             try:
                 process_discharge(self.device, self.db,
-                                  self.ch_id, self.matrix)
+                                  self.ch_id, self.matrix,
+                                  timeout=LIMITS.MAX_DISCHANGE_TIME)
             except Exception as e:
                 #logging.error(e)
                 exc_type, exc_value, exc_tb = sys.exc_info()
                 logging.error(repr(traceback.format_exception(exc_type,
                                                               exc_value,
                                                               exc_tb)))
+                self.empty()    # clear states in queue
                 self.queue.put(ChannelStates.ERROR)
-            self.queue.put(ChannelStates.postcheck)
+            else:
+                self.queue.put(ChannelStates.postcheck)
         elif(state == ChannelStates.postcheck):
             # Post Check
             logging.debug("channel " + str(self.ch_id) + " in post-check")
@@ -280,4 +289,4 @@ if __name__ == "__main__":
             finish = True
         else:
             # wait the PGEM PowerCycle number change, stupid.
-            time.sleep(360)
+            time.sleep(5)
