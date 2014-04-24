@@ -53,7 +53,6 @@ class StateMachine(object):
         p.start()
 
     def exit(self):
-        self.empty()
         self.q.put(States.EXIT)
 
     def loop(self, s):

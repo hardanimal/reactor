@@ -30,6 +30,7 @@ def process_check(device, db, ch_id):
             # dut present
             switch(device, ch_id, i)
             dut.update(dut_info(device, ch_id, i))
+            dut["STATUS"] = DUTStatus.TESTING
             if(dut["PWRCYCS"] >= LIMITS.POWER_CYCLE):
                 dut["STATUS"] = DUTStatus.PASSED
                 dut["MESSAGE"] = "DUT PASSED."
