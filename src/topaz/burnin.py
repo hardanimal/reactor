@@ -9,12 +9,20 @@ import logging
 
 i2c_adapter = Adapter()
 i2c_adapter.open(serialnumber=DEVICE_LIST[0])
+i2c_adapter2 = Adapter()
+i2c_adapter2.open(serialnumber=DEVICE_LIST[1])
 
 
 def main():
     channel_list = []
     for channel_id in range(0, 8):
         my_channel = channel_open(ch_id=channel_id, device=i2c_adapter)
+        f = fsm.StateMachine(my_channel)
+        f.run()
+        channel_list.append(f)
+
+    for channel_id in range(8, 16):
+        my_channel = channel_open(ch_id=channel_id, device=i2c_adapter2)
         f = fsm.StateMachine(my_channel)
         f.run()
         channel_list.append(f)
@@ -27,9 +35,11 @@ def main():
             if(f.status.value == ChannelStates.EXIT):
                 # check if already finished.
                 burnin_finish &= True
+                logging.info("--------------channel finish.----------------------")
                 continue
             else:
                 burnin_finish &= False
+                logging.info("--------------channel not finish.----------------------")
             logging.info("--------------channel start----------------------")
             # start one cycle
             f.en_queue(ChannelStates.run)

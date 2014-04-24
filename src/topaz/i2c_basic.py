@@ -51,7 +51,7 @@ def position(dutnum):
     return chnum, slot
 
 
-def re_position(chnum, slot):
+def re_position(chamber, chnum, slot):
     dutnum = chnum * 8 + slot
     return dutnum
 
@@ -102,7 +102,7 @@ def readreg_byname(device, reg_name):
     return device.read_reg(addr)
 
 
-def dut_info(device, chnum, slot):
+def dut_info(device):
     """method to read out EEPROM info from dut
     return a dict.
     """
@@ -113,7 +113,7 @@ def dut_info(device, chnum, slot):
     return dut
 
 
-def dut_reg(device, chnum, slot):
+def dut_reg(device):
     """method to read out registers info from dut
     return a dict.
     """
@@ -186,6 +186,9 @@ def bitop_charge(data):
 #        return False
 
 def hwrd(device, chnum):
+    if(chnum >= 8):
+        chnum -= 8      # map chamber 2 to chamber 1
+
     device.slave_addr = 0x38 + chnum
 
     # config PIO to input
@@ -201,6 +204,8 @@ def hwrd(device, chnum):
 def set_relay(device, chnum, matrix, status=0):
     """set relay for dut
     """
+    if(chnum >= 8):
+        chnum -= 8      # map chamber 2 to chamber 1
     REG_OUTPUT = 0x02
     REG_CONFIG = 0x06
     dutnum = chnum * 8
@@ -232,6 +237,8 @@ def switch(device, chnum, slot):
        chnum(channel number): 0~7
        slotnum(slot number): 0~7
     """
+    if(chnum >= 8):
+        chnum -= 8      # map chamber 2 to chamber 1
     device.slave_addr = 0x70 + chnum    # 0111 0000
     wdata = [0x01 << slot]
     device.write(wdata)
@@ -242,6 +249,8 @@ def deswitch(device, chnum):
        chnum(channel number): 0~7
        slotnum(slot number): 0~7
     """
+    if(chnum >= 8):
+        chnum -= 8      # map chamber 2 to chamber 1
     device.slave_addr = 0x70 + chnum    # 0111 0000
     wdata = 0x00
     device.write(wdata)
