@@ -43,13 +43,13 @@ def process_check(device, db, ch_id, chamber):
             dut["STATUS"] = DUTStatus.BLANK
         db.update(dut)
     deswitch(device, ch_id)
-    set_relay(device, ch_id, matrix, status=DISCHARGE)
+    #set_relay(device, ch_id, matrix, status=DISCHARGE)
     return matrix
 
 
 @gauge
 def process_charge(device, db, ch_id, matrix, chamber):
-    set_relay(device, ch_id, matrix, status=CHARGE)
+    #set_relay(device, ch_id, matrix, status=CHARGE)
     start_s = time.time()
     finish = False
     while(not finish):
