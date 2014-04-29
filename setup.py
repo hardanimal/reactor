@@ -14,10 +14,10 @@ from setuptools import setup
 
 setup(
     name="topaz_bi",
-    version="0.02",
+    version="0.07",
     package_dir={'': 'src'},
-    packages=['topaz',
-              'topaz/fsm'],
+    packages=["topaz",
+              "topaz/fsm"],
     package_data={'': ['*.xml', '*.dll', '*.so']},
     author="qibo",
     description='Agigatech Topaz Burnin Program',

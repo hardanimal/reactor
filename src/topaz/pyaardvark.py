@@ -6,27 +6,25 @@ the device can be found at http://www.totalphase.com/products/aardvark_i2cspi/
 And rewrite the I2C part of original API aardvark_py.py
 """
 
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 __author__ = "@boqiling"
 __all__ = ["I2CConfig", "Adapter"]
 
-#import os
-#import inspect
-#import imp
-#import platform
 import logging
 from array import array
+import imp
 
-#ext = platform.system() == 'Windows' and '.dll' or '.so'
-#dll_path = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-#api = imp.load_dynamic('aardvark', dll_path + '/aardvark' + ext)
+from pkg_resources import resource_filename
+aardvark32 = resource_filename(__name__, 'aardvark32.so')
+aardvark64 = resource_filename(__name__, 'aardvark64.so')
 try:
-    from topaz.ext.linux32 import aardvark as api
-except ImportError:
+    api = imp.load_dynamic('aardvark', aardvark32)
+except Exception as e:
+    logging.error(e)
     try:
-        from topaz.ext.linux64 import aardvark as api
-    except:
-        logging.error("fail to load aardvark ext")
+        api = imp.load_dynamic('aardvark', aardvark64)
+    except Exception as e:
+        logging.error(e)
         api = None
 
 DEFAULT_REG_VAL = 0xFF
