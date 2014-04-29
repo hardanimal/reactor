@@ -3,7 +3,7 @@
 """AgigaTech project "topaz" PGEM burnin program.
 """
 
-__version__ = 0.7
+__version__ = 0.08
 __author__ = "@boqiling"
 
 import logging
