@@ -10,16 +10,24 @@ __version__ = "1.0.0"
 __author__ = "@boqiling"
 __all__ = ["I2CConfig", "Adapter"]
 
-import os
-import inspect
-from array import array
-import imp
-import platform
+#import os
+#import inspect
+#import imp
+#import platform
 import logging
+from array import array
 
-ext = platform.system() == 'Windows' and '.dll' or '.so'
-dll_path = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-api = imp.load_dynamic('aardvark', dll_path + '/aardvark' + ext)
+#ext = platform.system() == 'Windows' and '.dll' or '.so'
+#dll_path = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+#api = imp.load_dynamic('aardvark', dll_path + '/aardvark' + ext)
+try:
+    from topaz.ext.linux32 import aardvark as api
+except ImportError:
+    try:
+        from topaz.ext.linux64 import aardvark as api
+    except:
+        logging.error("fail to load aardvark ext")
+        api = None
 
 DEFAULT_REG_VAL = 0xFF
 PORT_NOT_FREE = 0x8000
