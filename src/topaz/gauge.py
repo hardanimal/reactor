@@ -43,9 +43,10 @@ def gauge(func):
 
 
 if __name__ == "__main__":
+    import time
+
     @gauge
     def test_gauge():
-        import time
         time.sleep(2)
         print "finish."
 
@@ -54,6 +55,12 @@ if __name__ == "__main__":
         x = 1 / 0
         print "finish."
         return x
+
+    class GaugeInClass(object):
+        @gauge
+        def test(self):
+            time.sleep(2)
+            print "gauge in class"
 
     import sys
 
@@ -73,5 +80,10 @@ if __name__ == "__main__":
         logging.error("++++++++Catch:+++++++" + repr(e))
     try:
         test_gauge2(max_retries=5)
+    except Exception as e:
+        logging.error("++++++++Catch:+++++++" + repr(e))
+    try:
+        gic = GaugeInClass()
+        gic.test(timeout=1, max_retries=2)
     except Exception as e:
         logging.error("++++++++Catch:+++++++" + repr(e))

@@ -36,7 +36,8 @@ class Channel(fsm.IFunc):
         self.chamber = (ch_id+1) / 8
         index = re_position(self.chamber, ch_id, 0)
         self.db = DB(range(index, index + SLOTNUM))
-        self.matrix = 0x00
+        self.matrix = 0x00      # 1 for DUT_Exists, 0 for DUT_blank
+        self.result = 0x00      # 1 for pass, 0 for fail
         super(Channel, self).__init__()
 
     def init(self):
@@ -50,9 +51,8 @@ class Channel(fsm.IFunc):
             # CHARGING
             logging.debug("channel " + str(self.ch_id) + " in charging")
             try:
-                self.process_charge()
-            except Exception as e:
-                #logging.error(e)
+                self.process_charge(timeout=LIMITS.MAX_CHARGE_TIME)
+            except Exception:
                 exc_type, exc_value, exc_tb = sys.exc_info()
                 logging.error(repr(traceback.format_exception(exc_type,
                                                               exc_value,
@@ -65,9 +65,8 @@ class Channel(fsm.IFunc):
             # DISCHARGING
             logging.debug("channel " + str(self.ch_id) + " in discharging")
             try:
-                self.process_discharge()
-            except Exception as e:
-                #logging.error(e)
+                self.process_discharge(timeout=LIMITS.MAX_DISCHANGE_TIME)
+            except Exception:
                 exc_type, exc_value, exc_tb = sys.exc_info()
                 logging.error(repr(traceback.format_exception(exc_type,
                                                               exc_value,
@@ -83,12 +82,12 @@ class Channel(fsm.IFunc):
                 finish = self.process_postcheck()
                 if(finish):
                     self.queue.put(ChannelStates.EXIT)
-            except Exception as e:
-                #logging.error(e)
+            except Exception:
                 exc_type, exc_value, exc_tb = sys.exc_info()
                 logging.error(repr(traceback.format_exception(exc_type,
                                                               exc_value,
                                                               exc_tb)))
+                self.empty()    # clear states in queue
                 self.queue.put(ChannelStates.ERROR)
             else:
                 self.queue.put(ChannelStates.IDLE)
@@ -100,12 +99,12 @@ class Channel(fsm.IFunc):
                 if(self.matrix == 0x00):
                     # all blank
                     self.queue.put(ChannelStates.EXIT)
-            except Exception as e:
-                #logging.error(e)
+            except Exception:
                 exc_type, exc_value, exc_tb = sys.exc_info()
                 logging.error(repr(traceback.format_exception(exc_type,
                                                               exc_value,
                                                               exc_tb)))
+                self.empty()    # clear states in queue
                 self.queue.put(ChannelStates.ERROR)
             else:
                 self.queue.put(ChannelStates.charging)
@@ -120,6 +119,8 @@ class Channel(fsm.IFunc):
         logging.debug("channel " + str(self.ch_id) + " in error")
         try:
             set_relay(self.device, self.ch_id, 0x00,  status=DISCHARGE)
+            #save self.result to db
+            self.process_error()
         except:
             pass
         self.queue.put(ChannelStates.EXIT)
@@ -145,7 +146,9 @@ class Channel(fsm.IFunc):
                 if(dut["PWRCYCS"] >= LIMITS.POWER_CYCLE):
                     dut["STATUS"] = DUTStatus.PASSED
                     dut["MESSAGE"] = "DUT PASSED."
-                    logging.info(str(dut["_id"]) + " " + dut["SN"] + " passed.")
+                    self.result |= 0x01 << i    # set bit for pass
+                    logging.info("[+]" + str(dut["_id"]) + " " +
+                                 dut["SN"] + " passed.")
                 logging.info("[+] " + "Found " + dut["MODEL"] + " " +
                              dut["SN"] + " " + str(dut["PWRCYCS"]) + " on "
                              + str(re_position(self.chamber, self.ch_id, i)))
@@ -161,20 +164,19 @@ class Channel(fsm.IFunc):
     def process_charge(self):
         #set_relay(device, ch_id, matrix, status=CHARGE)
         start_s = time.time()
-        finish = 0x00
-        while(finish != 0xFF):
+        finish = False
+        while(not finish):
             for i in range(SLOTNUM):
                 if(not self.matrix & (0x01 << i)):
-                    finish &= 1 << i
                     continue
+
                 switch(self.device, self.ch_id, i)
 
                 dut_id = re_position(self.chamber, self.ch_id, i)
                 dut = self.db.fetch(dut_id)
                 result = dut_reg(self.device)
                 result.update({"TIME": time.time()-start_s})
-                if(result["VCAP"] >= LIMITS.VCAP_THRESH_HIGH):
-                    finish &= 1 << i
+                finish &= (result["VCAP"] >= LIMITS.VCAP_THRESH_HIGH)
                 vcap = result["VCAP"]
                 temp = result["TEMP"]
                 if(vcap > LIMITS.VCAP_LIMITS_HIGH):
@@ -195,7 +197,8 @@ class Channel(fsm.IFunc):
                 dut[curr_cycle].append(result)
                 self.db.update(dut)
 
-                display = "[+] " + str(re_position(self.chamber, self.ch_id, i)) + \
+                display = "[" + str(curr_cycle) + "] " + \
+                          str(re_position(self.chamber, self.ch_id, i)) + \
                           " VCAP: " + str(vcap) + " TEMP: " + str(temp)
                 logging.info(display)
             deswitch(self.device, self.ch_id)
@@ -240,7 +243,8 @@ class Channel(fsm.IFunc):
                 dut[curr_cycle].append(result)
                 self.db.update(dut)
 
-                display = "[+] " + str(re_position(self.chamber, self.ch_id, i)) + \
+                display = "[" + str(curr_cycle) + "] " + \
+                          str(re_position(self.chamber, self.ch_id, i)) + \
                           " VCAP: " + str(vcap) + " TEMP: " + str(temp)
                 logging.info(display)
             deswitch(self.device, self.ch_id)
@@ -257,6 +261,19 @@ class Channel(fsm.IFunc):
                 self.db.update(dut)
                 result &= False
         return result
+
+    def process_error(self):
+        for i in range(SLOTNUM):
+            dut_id = re_position(self.chamber, self.ch_id, i)
+            dut = self.db.fetch(dut_id)
+            if(self.result & (0x01 << i)):
+                # dut pass
+                dut["STATUS"] = DUTStatus.PASSED
+                dut["MESSAGE"] = "DUT PASSED."
+            else:
+                dut["STATUS"] = DUTStatus.FAILED
+                dut["MESSAGE"] = "error occured."
+            self.db.update(dut)
 
 
 if __name__ == "__main__":

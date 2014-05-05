@@ -25,16 +25,23 @@ class DUTStatus(object):
 
 class LIMITS(object):
     VCAP_LIMITS_HIGH = 130
-    TEMP_LIMITS_HIGH = 40
+    TEMP_LIMITS_HIGH = 70
     VCAP_THRESH_HIGH = 115
     VCAP_THRESH_LOW = 50            # need confirm
     MAX_DISCHANGE_TIME = 50         # seconds
     MAX_CHARGE_TIME = 150           # seconds
-    POWER_CYCLE = 150                # for testing
+    POWER_CYCLE = 150               # for testing
 
 
 class I2CADDR(object):
     DUT = 0x14
+
+
+class DELAY(object):
+    """define the delays of seconds
+    """
+    POWERON = 5
+    READCYCLE = 3
 
 
 class DUTException(Exception):
@@ -46,13 +53,6 @@ class DUTException(Exception):
 
     def __str__(self):
         return repr(self.message)
-
-
-class DELAY(object):
-    """define the delays of seconds
-    """
-    POWERON = 5
-    READCYCLE = 3
 
 
 class DUTERROR(object):
