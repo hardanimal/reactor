@@ -14,7 +14,7 @@ from setuptools import setup
 
 setup(
     name="topaz_bi",
-    version="0.08",
+    version="0.09",
     package_dir={'': 'src'},
     packages=["topaz",
               "topaz/fsm"],
