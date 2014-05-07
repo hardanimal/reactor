@@ -25,7 +25,7 @@ class DUTStatus(object):
 
 class LIMITS(object):
     VCAP_LIMITS_HIGH = 130
-    TEMP_LIMITS_HIGH = 70
+    TEMP_LIMITS_HIGH = 35
     VCAP_THRESH_HIGH = 115
     VCAP_THRESH_LOW = 50            # need confirm
     MAX_DISCHANGE_TIME = 50         # seconds

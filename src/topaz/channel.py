@@ -29,6 +29,17 @@ class ChannelStates(fsm.States):
     postcheck = 0xA3
 
 
+class Cycle(object):
+    """to indicate one cycle's status for each DUT"""
+    CHARGING = 0
+    CHARGE_FINISH = 1
+    DISCHARGING = 2
+    DISCHARGE_FINISH = 3
+    IDLING = 4
+    BLANK = 5
+    FAIL = 6
+
+
 class Channel(fsm.IFunc):
     def __init__(self, ch_id, device):
         self.ch_id = ch_id
@@ -36,8 +47,8 @@ class Channel(fsm.IFunc):
         self.chamber = (ch_id+1) / SLOTNUM
         index = re_position(self.chamber, ch_id, 0)
         self.db = DB(range(index, index + SLOTNUM))
-        self.matrix = 0x00      # 1 for DUT_Exists, 0 for DUT_blank
-        self.result = [DUTStatus.IDLE] * SLOTNUM      # 8 dut status
+        self.matrix = 0x00      # 0 for blank
+        self.result = [Cycle.IDLING] * SLOTNUM      # 8 dut status
         super(Channel, self).__init__()
 
     def init(self):
@@ -96,8 +107,10 @@ class Channel(fsm.IFunc):
             logging.debug("channel " + str(self.ch_id) + " in pre-check")
             try:
                 self.matrix = self.process_precheck()
-                if(self.matrix == 0x00):
-                    # all blank
+                if(not self.continue_test()):
+                    logging.debug("channel " + str(self.ch_id) +
+                                  " : no dut need to test.")
+                    self.empty()
                     self.queue.put(ChannelStates.EXIT)
             except Exception:
                 exc_type, exc_value, exc_tb = sys.exc_info()
@@ -129,6 +142,14 @@ class Channel(fsm.IFunc):
         self.db.close()
         logging.debug("channel " + str(self.ch_id) + " in exit...")
 
+    def continue_test(self):
+        """if this cycle is finished"""
+        for i in self.result:
+            if((i != Cycle.DISCHARGE_FINISH) and (i != Cycle.BLANK)):
+                # not finished.
+                return True
+        return False
+
     def process_precheck(self):
         """pre check"""
         set_relay(self.device, self.ch_id, 0xFF, status=CHARGE)
@@ -146,7 +167,7 @@ class Channel(fsm.IFunc):
                 if(dut["PWRCYCS"] >= LIMITS.POWER_CYCLE):
                     dut["STATUS"] = DUTStatus.PASSED
                     dut["MESSAGE"] = "DUT PASSED."
-                    self.result |= 0x01 << i    # set bit for pass
+                    self.result[i] = Cycle.DISCHARGE_FINISH
                     logging.info("[+]" + str(dut["_id"]) + " " +
                                  dut["SN"] + " passed.")
                 logging.info("[+] " + "Found " + dut["MODEL"] + " " +
@@ -155,6 +176,7 @@ class Channel(fsm.IFunc):
             else:
                 logging.debug(str(dut_id) + " is not ready.")
                 dut["STATUS"] = DUTStatus.BLANK
+                self.result[i] = Cycle.BLANK
             self.db.update(dut)
         deswitch(self.device, self.ch_id)
         #set_relay(device, ch_id, matrix, status=DISCHARGE)
@@ -166,29 +188,42 @@ class Channel(fsm.IFunc):
         start_s = time.time()
         finish = False
         while(not finish):
+            finish = True
             for i in range(SLOTNUM):
-                if(not self.matrix & (0x01 << i)):
+                if(self.result[i] == Cycle.BLANK or
+                   self.result[i] == Cycle.FAIL):
                     continue
 
                 switch(self.device, self.ch_id, i)
+                self.result[i] = Cycle.CHARGING
 
                 dut_id = re_position(self.chamber, self.ch_id, i)
                 dut = self.db.fetch(dut_id)
                 result = dut_reg(self.device)
                 result.update({"TIME": time.time()-start_s})
-                finish &= (result["VCAP"] >= LIMITS.VCAP_THRESH_HIGH)
                 vcap = result["VCAP"]
                 temp = result["TEMP"]
-                if(vcap > LIMITS.VCAP_LIMITS_HIGH):
+
+                if(vcap >= LIMITS.VCAP_THRESH_HIGH and
+                   temp <= LIMITS.TEMP_LIMITS_HIGH):
+                    finish &= True
+                    self.result[i] = Cycle.CHARGE_FINISH
+                elif(vcap > LIMITS.VCAP_LIMITS_HIGH):
                     # over charge voltage, fail
                     logging.error("[-]" + " over charge voltage: " + str(vcap))
                     dut["STATUS"] = DUTStatus.FAILED
                     dut["MESSAGE"] = "DUT VCAP HIGH."
-                if(temp > LIMITS.TEMP_LIMITS_HIGH):
+                    self.result[i] = Cycle.FAIL
+                    finish &= True
+                elif(temp > LIMITS.TEMP_LIMITS_HIGH):
                     # over temperature, fail
                     logging.error("[-]" + " over temperature: " + str(temp))
                     dut["STATUS"] = DUTStatus.FAILED
                     dut["MESSAGE"] = "DUT TEMP HIGH."
+                    self.result[i] = Cycle.FAIL
+                    finish &= True
+                else:
+                    finish &= False
 
                 # record result
                 curr_cycle = "CYCLES" + str(int(dut["PWRCYCS"]) + 1)
@@ -201,8 +236,8 @@ class Channel(fsm.IFunc):
                           str(re_position(self.chamber, self.ch_id, i)) + \
                           " VCAP: " + str(vcap) + " TEMP: " + str(temp)
                 logging.info(display)
+            logging.info(" ")    # seperator for diaplay
             deswitch(self.device, self.ch_id)
-            logging.info("=" * len(display))    # seperator for diaplay
             time.sleep(DELAY.READCYCLE)
 
     @gauge
@@ -213,28 +248,40 @@ class Channel(fsm.IFunc):
         while(not finish):
             finish = True
             for i in range(SLOTNUM):
-                if(not self.matrix & (0x01 << i)):
+                if(self.result[i] == Cycle.BLANK or
+                   self.result[i] == Cycle.FAIL):
                     continue
 
                 switch(self.device, self.ch_id, i)
+                self.result[i] = Cycle.DISCHARGING
 
                 dut_id = re_position(self.chamber, self.ch_id, i)
                 dut = self.db.fetch(dut_id)
                 result = dut_reg(self.device)
                 result.update({"TIME": time.time()-start_s})
-                finish &= (result["VCAP"] <= LIMITS.VCAP_THRESH_LOW)
                 vcap = result["VCAP"]
                 temp = result["TEMP"]
-                if(vcap > LIMITS.VCAP_LIMITS_HIGH):
+
+                if(vcap <= LIMITS.VCAP_THRESH_LOW and
+                   temp <= LIMITS.TEMP_LIMITS_HIGH):
+                    finish &= True
+                    self.result[i] = Cycle.DISCHARGE_FINISH
+                elif(vcap > LIMITS.VCAP_LIMITS_HIGH):
                     # over charge voltage, fail
                     logging.error("[-]" + " over charge voltage: " + str(vcap))
                     dut["STATUS"] = DUTStatus.FAILED
                     dut["MESSAGE"] = "DUT VCAP HIGH."
-                if(temp > LIMITS.TEMP_LIMITS_HIGH):
+                    self.result[i] = Cycle.FAIL
+                    finish &= True
+                elif(temp > LIMITS.TEMP_LIMITS_HIGH):
                     # over temperature, fail
                     logging.error("[-]" + " over temperature: " + str(temp))
                     dut["STATUS"] = DUTStatus.FAILED
                     dut["MESSAGE"] = "DUT TEMP HIGH."
+                    self.result[i] = Cycle.FAIL
+                    finish &= True
+                else:
+                    finish &= False
 
                 # record result
                 curr_cycle = "CYCLES" + str(int(dut["PWRCYCS"]) + 1)
@@ -247,13 +294,14 @@ class Channel(fsm.IFunc):
                           str(re_position(self.chamber, self.ch_id, i)) + \
                           " VCAP: " + str(vcap) + " TEMP: " + str(temp)
                 logging.info(display)
+            logging.info(" ")    # seperator for diaplay
             deswitch(self.device, self.ch_id)
-            logging.info("=" * len(display))    # seperator for diaplay
             time.sleep(DELAY.READCYCLE)
 
     def process_postcheck(self):
         result = True
         for i in range(SLOTNUM):
+            self.result[i] = Cycle.IDLING
             dut_id = re_position(self.chamber, self.ch_id, i)
             dut = self.db.fetch(dut_id)
             if(dut["STATUS"] == DUTStatus.TESTING):
@@ -266,13 +314,16 @@ class Channel(fsm.IFunc):
         for i in range(SLOTNUM):
             dut_id = re_position(self.chamber, self.ch_id, i)
             dut = self.db.fetch(dut_id)
-            if(self.result[i] == DUTStatus.TESTING):
-                # dut pass
-                dut["STATUS"] = DUTStatus.PASSED
-                dut["MESSAGE"] = "DUT PASSED."
-            else:
+            if(self.result[i] == Cycle.CHARGING):
+                # dut failed
                 dut["STATUS"] = DUTStatus.FAILED
-                dut["MESSAGE"] = "ERROR OCCURED."
+                dut["MESSAGE"] = "ERROR OCCURED IN CHARGING."
+            elif(self.result[i] == Cycle.DISCHARGING):
+                # dut failed
+                dut["STATUS"] = DUTStatus.FAILED
+                dut["MESSAGE"] = "ERROR OCCURED IN DISCHARGING."
+            else:
+                dut["STATUS"] = DUTStatus.IDLE
             self.db.update(dut)
 
 

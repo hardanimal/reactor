@@ -54,8 +54,9 @@ def main():
                 # check if the channle has finished burnin
                 time.sleep(5)
             logging.info("--------------channel done.----------------------")
-        # used to prevent only one channel left and get never finished.
-        time.sleep(wait_for_discharge)
+        if(not burnin_finish):
+            # used to prevent only one channel left and get never finished.
+            time.sleep(wait_for_discharge)
     logging.info("====================burnin done.=========================")
 
 
