@@ -38,6 +38,7 @@ class Cycle(object):
     IDLING = 4
     BLANK = 5
     FAIL = 6
+    PASS = 7
 
 
 class Channel(fsm.IFunc):
@@ -167,7 +168,7 @@ class Channel(fsm.IFunc):
                 if(dut["PWRCYCS"] >= LIMITS.POWER_CYCLE):
                     dut["STATUS"] = DUTStatus.PASSED
                     dut["MESSAGE"] = "DUT PASSED."
-                    self.result[i] = Cycle.DISCHARGE_FINISH
+                    self.result[i] = Cycle.PASS
                     logging.info("[+]" + str(dut["_id"]) + " " +
                                  dut["SN"] + " passed.")
                 logging.info("[+] " + "Found " + dut["MODEL"] + " " +
@@ -191,6 +192,7 @@ class Channel(fsm.IFunc):
             finish = True
             for i in range(SLOTNUM):
                 if(self.result[i] == Cycle.BLANK or
+                   self.result[i] == Cycle.PASS or
                    self.result[i] == Cycle.FAIL):
                     continue
 
@@ -249,6 +251,7 @@ class Channel(fsm.IFunc):
             finish = True
             for i in range(SLOTNUM):
                 if(self.result[i] == Cycle.BLANK or
+                   self.result[i] == Cycle.PASS or
                    self.result[i] == Cycle.FAIL):
                     continue
 
