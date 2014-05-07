@@ -33,11 +33,11 @@ class Channel(fsm.IFunc):
     def __init__(self, ch_id, device):
         self.ch_id = ch_id
         self.device = device
-        self.chamber = (ch_id+1) / 8
+        self.chamber = (ch_id+1) / SLOTNUM
         index = re_position(self.chamber, ch_id, 0)
         self.db = DB(range(index, index + SLOTNUM))
         self.matrix = 0x00      # 1 for DUT_Exists, 0 for DUT_blank
-        self.result = 0x00      # 1 for pass, 0 for fail
+        self.result = [DUTStatus.IDLE] * SLOTNUM      # 8 dut status
         super(Channel, self).__init__()
 
     def init(self):
@@ -266,13 +266,13 @@ class Channel(fsm.IFunc):
         for i in range(SLOTNUM):
             dut_id = re_position(self.chamber, self.ch_id, i)
             dut = self.db.fetch(dut_id)
-            if(self.result & (0x01 << i)):
+            if(self.result[i] == DUTStatus.TESTING):
                 # dut pass
                 dut["STATUS"] = DUTStatus.PASSED
                 dut["MESSAGE"] = "DUT PASSED."
             else:
                 dut["STATUS"] = DUTStatus.FAILED
-                dut["MESSAGE"] = "error occured."
+                dut["MESSAGE"] = "ERROR OCCURED."
             self.db.update(dut)
 
 
