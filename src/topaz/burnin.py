@@ -58,6 +58,7 @@ def main():
             # used to prevent only one channel left and
             # get not enough time to dischage
             time.sleep(wait_for_discharge)
+        wait_for_discharge = 0
     logging.info("====================burnin done.=========================")
 
 
