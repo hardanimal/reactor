@@ -15,8 +15,8 @@ class ChamberStates(fsm.States):
 
 
 class Chamber(fsm.IFunc):
-    '''chamber class
-    '''
+    """chamber class
+    """
 
     def __init__(self, adapter_sn, chamber_id):
         self.i2c_adapter = Adapter()

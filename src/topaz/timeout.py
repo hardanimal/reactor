@@ -8,9 +8,9 @@ class TimeoutException(Exception):
 
 
 def timethis(func):
-    '''
+    """
     Decorator that reports the execution time.
-    '''
+    """
     @wraps(func)
     def wrapper(*args, **kwargs):
         def timeout_handler(signum, frame):
@@ -26,7 +26,8 @@ def timethis(func):
             return {"result": result, "timeout": False, "eplased": eplased}
         except TimeoutException:
             return {"result": None, "timeout": True, "eplased": None}
-        signal.alarm(0)     # cancel the alarm
+        finally:
+            signal.alarm(0)     # cancel the alarm
     return wrapper
 
 if __name__ == "__main__":
@@ -35,7 +36,6 @@ if __name__ == "__main__":
         x = 0
         for i in range(0, n):
             x += i
-            i += 1
             time.sleep(0.1)
         return x
 

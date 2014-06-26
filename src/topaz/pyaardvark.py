@@ -133,26 +133,27 @@ def array_s64 (n):  return array('L', '\0\0\0\0\0\0\0\0'*n)
 
 
 class Adapter(object):
-    '''USB-I2C Aapter API Class
-    '''
+    """USB-I2C Aapter API Class
+    """
 
     def __init__(self, **kvargs):
-        '''constructor
-        '''
+        """constructor
+        """
         self.bitrate = kvargs.get('bitrate', 400)
         self.bus_timeout = kvargs.get('timeout', 25)
         self.handle = 0
         self.slave_addr = 0
+        self.port = None
 
     def __del__(self):
-        '''destructor
-        '''
+        """destructor
+        """
         try:
             self.close()
         except Exception:
             pass
 
-    def find_devices(filter_in_use=True):
+    def find_devices(self, filter_in_use=True):
         """Return a list of port numbers which can be used with :func:`open`.
 
         If *filter_in_use* parameter is `True` devices which are already opened
@@ -179,13 +180,12 @@ class Adapter(object):
         return devices
 
     def open(self, portnum=None, serialnumber=None):
-        '''
+        """
         find ports, and open the port with portnum or sn,
         config the aardvark tool params like bitrate, slave address etc,
-        '''
+        """
         ports = self.find_devices()
         logging.debug("find ports: " + str(ports))
-        self.port = None
         if(serialnumber):
             for port in ports:
                 handle = api.py_aa_open(port)
@@ -199,8 +199,6 @@ class Adapter(object):
                 raise_aa_ex(-601)
         elif(portnum):
             self.port = portnum
-        else:
-            self.port = 0
 
         logging.debug("open: " + str(self.port))
         self.handle = api.py_aa_open(self.port)
@@ -235,9 +233,9 @@ class Adapter(object):
         return '%04d-%06d' % (id1, id2)
 
     def write(self, wata, config=I2CConfig.AA_I2C_NO_FLAGS):
-        '''write ata to slave address
+        """write ata to slave address
         ata can be byte or array of byte
-        '''
+        """
         if(type(wata) == int):
             ata_out = array('B', [wata])
             length = 1
@@ -258,8 +256,8 @@ class Adapter(object):
             raise_aa_ex(-103)
 
     def read(self, config=I2CConfig.AA_I2C_NO_FLAGS):
-        '''read 1 byte from slave address
-        '''
+        """read 1 byte from slave address
+        """
         # read 1 byte each time for easy
         length = 1
         ata_in = array_u08(length)
@@ -277,22 +275,22 @@ class Adapter(object):
         return val
 
     def write_reg(self, reg_addr, wata):
-        '''
+        """
         Write ata list to slave device
         If write to slave device's register, ata_list = [reg_addr, wata]
         reg_addr: register address offset
         wata: ata to be write to SMBus register
-        '''
+        """
         # ata_out must be unsigned char
         ata_out = [reg_addr, wata]
         self.write(ata_out)
 
     def read_reg(self, reg_addr):
-        '''
+        """
         Read ata from slave device's register
         write the [reg_addr] to slave device first, then read back.
         reg_addr: register address offset
-        '''
+        """
         val = DEFAULT_REG_VAL
         self.write(reg_addr, I2CConfig.AA_I2C_NO_STOP)
 
@@ -301,13 +299,13 @@ class Adapter(object):
         return val
 
     def sleep(self, ms):
-        '''sleep for specified number of milliseconds
-        '''
+        """sleep for specified number of milliseconds
+        """
         api.py_aa_sleep_ms(ms)
 
     def close(self):
-        '''close device
-        '''
+        """close device
+        """
         api.py_aa_close(self.handle)
 
 

@@ -10,12 +10,12 @@ connection = Connection()
 db = connection[databaseName]
 status_runtime = db['dut_running']
 data_pattern = {
-    "_id" : 54,
-    "STATUS" : 1,
-    "PWRCYCS" : 6,
-    "PCA" : "00000000",
-    "PCBVER" : "000Rev02",
-    "CYCLES7" : [ 
+    "_id": 54,
+    "STATUS": 1,
+    "PWRCYCS": 6,
+    "PCA": "00000000",
+    "PCBVER": "000Rev02",
+    "CYCLES7": [
         {
             "READINESS" : 12,
             "RESERVED" : 30,
@@ -30,7 +30,7 @@ data_pattern = {
             "VC5" : 31,
             "VC6" : 30,
             "TIME" : 0.07694506645202637
-        }, 
+        },
         {
             "READINESS" : 12,
             "RESERVED" : 33,
@@ -45,7 +45,7 @@ data_pattern = {
             "VC5" : 34,
             "VC6" : 33,
             "PGEMSTAT" : 1
-        }, 
+        },
         {
             "READINESS" : 12,
             "RESERVED" : 36,
@@ -60,7 +60,7 @@ data_pattern = {
             "VC5" : 36,
             "VC6" : 36,
             "TIME" : 6.253992080688477
-        }, 
+        },
         {
             "READINESS" : 12,
             "RESERVED" : 39,
@@ -75,7 +75,7 @@ data_pattern = {
             "VC5" : 39,
             "VC6" : 39,
             "PGEMSTAT" : 1
-        }, 
+        },
         {
             "READINESS" : 12,
             "RESERVED" : 41,
@@ -90,7 +90,7 @@ data_pattern = {
             "VC5" : 42,
             "VC6" : 41,
             "TIME" : 12.43994307518005
-        }, 
+        },
         {
             "READINESS" : 12,
             "RESERVED" : 44,
@@ -105,7 +105,7 @@ data_pattern = {
             "VC5" : 45,
             "VC6" : 44,
             "PGEMSTAT" : 1
-        }, 
+        },
         {
             "READINESS" : 12,
             "RESERVED" : 47,
@@ -120,7 +120,7 @@ data_pattern = {
             "VC5" : 47,
             "VC6" : 47,
             "TIME" : 18.62094902992249
-        }, 
+        },
         {
             "READINESS" : 12,
             "RESERVED" : 49,
@@ -135,7 +135,7 @@ data_pattern = {
             "VC5" : 50,
             "VC6" : 49,
             "PGEMSTAT" : 1
-        }, 
+        },
         {
             "READINESS" : 12,
             "RESERVED" : 52,
@@ -150,7 +150,7 @@ data_pattern = {
             "VC5" : 52,
             "VC6" : 52,
             "TIME" : 24.80233502388
-        }, 
+        },
         {
             "READINESS" : 12,
             "RESERVED" : 55,
@@ -165,7 +165,7 @@ data_pattern = {
             "VC5" : 55,
             "VC6" : 55,
             "PGEMSTAT" : 1
-        }, 
+        },
         {
             "READINESS" : 12,
             "RESERVED" : 57,
@@ -180,7 +180,7 @@ data_pattern = {
             "VC5" : 58,
             "VC6" : 57,
             "TIME" : 30.97643709182739
-        }, 
+        },
         {
             "READINESS" : 12,
             "RESERVED" : 60,
@@ -195,7 +195,7 @@ data_pattern = {
             "VC5" : 60,
             "VC6" : 60,
             "PGEMSTAT" : 1
-        }, 
+        },
         {
             "READINESS" : 12,
             "RESERVED" : 62,
@@ -210,7 +210,7 @@ data_pattern = {
             "VC5" : 63,
             "VC6" : 62,
             "TIME" : 37.15418100357056
-        }, 
+        },
         {
             "READINESS" : 12,
             "RESERVED" : 64,
@@ -225,7 +225,7 @@ data_pattern = {
             "VC5" : 65,
             "VC6" : 64,
             "PGEMSTAT" : 1
-        }, 
+        },
         {
             "READINESS" : 12,
             "RESERVED" : 67,
@@ -240,7 +240,7 @@ data_pattern = {
             "VC5" : 67,
             "VC6" : 67,
             "TIME" : 43.32546305656433
-        }, 
+        },
         {
             "READINESS" : 12,
             "RESERVED" : 69,
@@ -255,7 +255,7 @@ data_pattern = {
             "VC5" : 70,
             "VC6" : 69,
             "PGEMSTAT" : 1
-        }, 
+        },
         {
             "READINESS" : 12,
             "RESERVED" : 72,
@@ -270,7 +270,7 @@ data_pattern = {
             "VC5" : 72,
             "VC6" : 72,
             "TIME" : 49.50604009628296
-        }, 
+        },
         {
             "READINESS" : 12,
             "RESERVED" : 74,
@@ -285,7 +285,7 @@ data_pattern = {
             "VC5" : 75,
             "VC6" : 74,
             "PGEMSTAT" : 1
-        }, 
+        },
         {
             "READINESS" : 12,
             "RESERVED" : 76,
@@ -300,7 +300,7 @@ data_pattern = {
             "VC5" : 77,
             "VC6" : 76,
             "TIME" : 55.69489598274231
-        }, 
+        },
         {
             "READINESS" : 12,
             "RESERVED" : 79,
@@ -315,7 +315,7 @@ data_pattern = {
             "VC5" : 79,
             "VC6" : 79,
             "PGEMSTAT" : 1
-        }, 
+        },
         {
             "READINESS" : 12,
             "RESERVED" : 81,
@@ -330,7 +330,7 @@ data_pattern = {
             "VC5" : 81,
             "VC6" : 81,
             "TIME" : 61.87822008132935
-        }, 
+        },
         {
             "READINESS" : 12,
             "RESERVED" : 83,
@@ -345,7 +345,7 @@ data_pattern = {
             "VC5" : 84,
             "VC6" : 83,
             "PGEMSTAT" : 1
-        }, 
+        },
         {
             "READINESS" : 12,
             "RESERVED" : 86,
@@ -360,7 +360,7 @@ data_pattern = {
             "VC5" : 86,
             "VC6" : 86,
             "TIME" : 68.05410599708557
-        }, 
+        },
         {
             "READINESS" : 12,
             "RESERVED" : 88,
@@ -375,7 +375,7 @@ data_pattern = {
             "VC5" : 88,
             "VC6" : 88,
             "PGEMSTAT" : 1
-        }, 
+        },
         {
             "READINESS" : 12,
             "RESERVED" : 90,
@@ -390,7 +390,7 @@ data_pattern = {
             "VC5" : 90,
             "VC6" : 90,
             "TIME" : 74.23203611373901
-        }, 
+        },
         {
             "READINESS" : 12,
             "RESERVED" : 92,
@@ -405,7 +405,7 @@ data_pattern = {
             "VC5" : 93,
             "VC6" : 92,
             "PGEMSTAT" : 1
-        }, 
+        },
         {
             "READINESS" : 143,
             "RESERVED" : 95,
@@ -420,7 +420,7 @@ data_pattern = {
             "VC5" : 95,
             "VC6" : 95,
             "TIME" : 80.41866898536682
-        }, 
+        },
         {
             "READINESS" : 143,
             "RESERVED" : 97,
@@ -435,7 +435,7 @@ data_pattern = {
             "VC5" : 97,
             "VC6" : 97,
             "PGEMSTAT" : 0
-        }, 
+        },
         {
             "READINESS" : 4,
             "RESERVED" : 97,
@@ -450,7 +450,7 @@ data_pattern = {
             "VC5" : 97,
             "VC6" : 97,
             "TIME" : 0.06919097900390625
-        }, 
+        },
         {
             "READINESS" : 4,
             "RESERVED" : 87,
@@ -465,7 +465,7 @@ data_pattern = {
             "VC5" : 87,
             "VC6" : 87,
             "PGEMSTAT" : 10
-        }, 
+        },
         {
             "READINESS" : 4,
             "RESERVED" : 79,
@@ -480,7 +480,7 @@ data_pattern = {
             "VC5" : 79,
             "VC6" : 79,
             "TIME" : 6.255005836486816
-        }, 
+        },
         {
             "READINESS" : 4,
             "RESERVED" : 71,
@@ -495,7 +495,7 @@ data_pattern = {
             "VC5" : 71,
             "VC6" : 71,
             "PGEMSTAT" : 10
-        }, 
+        },
         {
             "READINESS" : 4,
             "RESERVED" : 63,
@@ -510,7 +510,7 @@ data_pattern = {
             "VC5" : 63,
             "VC6" : 63,
             "TIME" : 12.4387378692627
-        }, 
+        },
         {
             "READINESS" : 4,
             "RESERVED" : 54,
@@ -525,7 +525,7 @@ data_pattern = {
             "VC5" : 55,
             "VC6" : 54,
             "PGEMSTAT" : 10
-        }, 
+        },
         {
             "READINESS" : 4,
             "RESERVED" : 46,
@@ -540,7 +540,7 @@ data_pattern = {
             "VC5" : 47,
             "VC6" : 46,
             "TIME" : 18.62239503860474
-        }, 
+        },
         {
             "READINESS" : 4,
             "RESERVED" : 37,

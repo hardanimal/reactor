@@ -134,15 +134,15 @@ def bitop_discharge(data):
     RELAY47 = 0x0
     for i in range(4):
         b = high & 0x01
-        b = b << (i*2 + 1)
+        b <<= (i*2 + 1)
 
         a = low & 0x01
-        a = a << (i*2 + 1)
+        a <<= (i*2 + 1)
 
         RELAY47 += b
         RELAY03 += a
-        high = high >> 1
-        low = low >> 1
+        high >>= 1
+        low >>= 1
 
     return RELAY47, RELAY03
 
@@ -156,15 +156,15 @@ def bitop_charge(data):
     RELAY47 = 0x0
     for i in range(4):
         b = high & 0x01
-        b = b << (i*2)
+        b <<= (i*2)
 
         a = low & 0x01
-        a = a << (i*2)
+        a <<= (i*2)
 
         RELAY47 += b
         RELAY03 += a
-        high = high >> 1
-        low = low >> 1
+        high >>= 1
+        low >>= 1
 
     return RELAY47, RELAY03
 
@@ -275,8 +275,8 @@ if __name__ == "__main__":
             try:
                 print str(i) + " is ready."
                 switch(device, channel, i)
-                print dut_info(device, channel, i)
-                print dut_reg(device, channel, i)
+                print dut_info(device)
+                print dut_reg(device)
             except Exception as e:
                 print(e)
         else:

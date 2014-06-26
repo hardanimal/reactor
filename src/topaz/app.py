@@ -22,18 +22,10 @@ def index():
 def newstatus():
     status_list = []
     for e in status_runtime.find():
-        last_status = {"ID": None,
-                       "PWRCYCS": None,
-                       "STATUS": None,
-                       "CYCLE": None,
-                       "FWVER": None,
-                       "HWVER": None,
-                       "SN": None,
-                       "MODEL": None,
-                       "VCAP": None,
-                       "TEMP": None}
-        last_status["ID"] = e["_id"]+1
-        last_status["STATUS"] = e["STATUS"]
+        last_status = {"ID": e["_id"] + 1, "PWRCYCS": None,
+                       "STATUS": e["STATUS"], "CYCLE": None, "FWVER": None,
+                       "HWVER": None, "SN": None, "MODEL": None,
+                       "VCAP": None, "TEMP": None}
         if "PWRCYCS" in e:
             last_status["PWRCYCS"] = e["PWRCYCS"]
             last_status["CYCLE"] = e["PWRCYCS"]+1

@@ -69,7 +69,7 @@ class DB(object):
 if __name__ == "__main__":
     db = DB([1])
     db.setup()
-    mydict = db.fetch(1)
-    mydict.update({"SN": "123", "STATUS": "PASS"})
-    db.update(mydict)
+    MyDict = db.fetch(1)
+    MyDict.update({"SN": "123", "STATUS": "PASS"})
+    db.update(MyDict)
     db.close()

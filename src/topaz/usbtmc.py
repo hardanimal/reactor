@@ -346,10 +346,10 @@ class Instrument(object):
             num -= size
 
     def read_raw(self, num=-1):
-        "Read binary data from instrument"
+        """Read binary data from instrument"""
         
         read_len = self.max_recv_size
-        if num > 0 and num < self.max_recv_size:
+        if(0 < num < self.max_recv_size):
             read_len = num
         
         eom = False
@@ -378,7 +378,7 @@ class Instrument(object):
                 break
             
             if num > 0:
-                num = num - len(data)
+                num -= len(data)
                 if num <= 0:
                     break
                 if num < read_len:
