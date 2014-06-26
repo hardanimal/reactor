@@ -5,6 +5,7 @@
 *.egg
 *.egg-info
 *.log
+.idea/
 dist
 build
 eggs
