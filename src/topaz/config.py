@@ -30,7 +30,7 @@ class LIMITS(object):
     VCAP_THRESH_LOW = 50            # need confirm
     MAX_DISCHANGE_TIME = 100         # seconds
     MAX_CHARGE_TIME = 200           # seconds
-    POWER_CYCLE = 100               # for testing
+    POWER_CYCLE = 80
 
 
 class I2CADDR(object):
