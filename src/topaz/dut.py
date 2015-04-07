@@ -24,9 +24,9 @@ class DUT(fsm.IFunc):
         logging.debug("dut" + str(self.dutid) + " in idle")
 
     def work(self, state):
-        if(state == DUTStates.charging):
+        if (state == DUTStates.charging):
             logging.debug("dut" + str(self.dutid) + " in charging")
-        elif(state == DUTStates.discharging):
+        elif (state == DUTStates.discharging):
             logging.debug("dut" + str(self.dutid) + " in discharging")
         else:
             logging.debug("unknow dut state, exit...")
@@ -50,7 +50,7 @@ if __name__ == "__main__":
         f.en_queue(DUTStates.INIT)
         f.en_queue(DUTStates.charging)
         f.en_queue(DUTStates.discharging)
-        while(f.status.value != DUTStates.discharging):
+        while (f.status.value != DUTStates.discharging):
             print f.status.value
             pass
         f.en_queue(DUTStates.EXIT)

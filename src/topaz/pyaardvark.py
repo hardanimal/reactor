@@ -15,6 +15,7 @@ from array import array
 import imp
 
 from pkg_resources import resource_filename
+
 aardvark32 = resource_filename(__name__, 'aardvark32.so')
 aardvark64 = resource_filename(__name__, 'aardvark64.so')
 try:
@@ -81,19 +82,19 @@ def _query_map(mymap, **kvargs):
     """
     r = mymap
     for k, v in kvargs.items():
-        r = filter(lambda row: row[k] == v,  r)
+        r = filter(lambda row: row[k] == v, r)
     return r
 
 
 def raise_i2c_ex(num):
     ex = _query_map(I2C_STATUS_MAP, code=num)[0]
-    if(ex["code"] != 0):
+    if (ex["code"] != 0):
         raise RuntimeError(True, ex["code"], ex["msg"])
 
 
 def raise_aa_ex(num):
     ex = _query_map(AA_STATUS_MAP, code=num)[0]
-    if(ex["code"] != 0):
+    if (ex["code"] != 0):
         raise RuntimeError(True, ex["code"], ex["msg"])
 
 
@@ -122,14 +123,28 @@ class I2CConfig(object):
     AA_I2C_SIZED_READ_EXTRA1 = 0x20
 
 
-def array_u08 (n):  return array('B', '\0'*n)
-def array_u16 (n):  return array('H', '\0\0'*n)
-def array_u32 (n):  return array('I', '\0\0\0\0'*n)
-def array_u64 (n):  return array('K', '\0\0\0\0\0\0\0\0'*n)
-def array_s08 (n):  return array('b', '\0'*n)
-def array_s16 (n):  return array('h', '\0\0'*n)
-def array_s32 (n):  return array('i', '\0\0\0\0'*n)
-def array_s64 (n):  return array('L', '\0\0\0\0\0\0\0\0'*n)
+def array_u08(n):  return array('B', '\0' * n)
+
+
+def array_u16(n):  return array('H', '\0\0' * n)
+
+
+def array_u32(n):  return array('I', '\0\0\0\0' * n)
+
+
+def array_u64(n):  return array('K', '\0\0\0\0\0\0\0\0' * n)
+
+
+def array_s08(n):  return array('b', '\0' * n)
+
+
+def array_s16(n):  return array('h', '\0\0' * n)
+
+
+def array_s32(n):  return array('i', '\0\0\0\0' * n)
+
+
+def array_s64(n):  return array('L', '\0\0\0\0\0\0\0\0' * n)
 
 
 class Adapter(object):
@@ -186,27 +201,27 @@ class Adapter(object):
         """
         ports = self.find_devices()
         logging.debug("find ports: " + str(ports))
-        if(serialnumber):
+        if (serialnumber):
             for port in ports:
                 handle = api.py_aa_open(port)
-                if(api.py_aa_unique_id(handle) == serialnumber):
+                if (api.py_aa_unique_id(handle) == serialnumber):
                     logging.debug("SN: " + str(api.py_aa_unique_id(handle)))
                     self.port = port
                     api.py_aa_close(handle)
                     break
                 api.py_aa_close(handle)
-            if(self.port is None):
+            if (self.port is None):
                 raise_aa_ex(-601)
-        elif(portnum is not None):
+        elif (portnum is not None):
             self.port = portnum
 
         logging.debug("open: " + str(self.port))
         self.handle = api.py_aa_open(self.port)
 
-        if(self.handle <= 0):
+        if (self.handle <= 0):
             raise_aa_ex(self.handle)
         # Ensure that the I2C subsystem is enabled
-        api.py_aa_configure(self.handle,  I2CConfig.AA_CONFIG_SPI_I2C)
+        api.py_aa_configure(self.handle, I2CConfig.AA_CONFIG_SPI_I2C)
         api.py_aa_i2c_pullup(self.handle, I2CConfig.AA_I2C_PULLUP_BOTH)
         api.py_aa_target_power(self.handle, I2CConfig.AA_TARGET_POWER_NONE)
         # Set the bitrate, in khz
@@ -236,10 +251,10 @@ class Adapter(object):
         """write ata to slave address
         ata can be byte or array of byte
         """
-        if(type(wata) == int):
+        if (type(wata) == int):
             ata_out = array('B', [wata])
             length = 1
-        elif(type(wata) == list):
+        elif (type(wata) == list):
             ata_out = array('B', wata)
             length = len(wata)
         else:
@@ -249,10 +264,10 @@ class Adapter(object):
                                                      config,
                                                      length,
                                                      ata_out)
-        if(ret != 0):
+        if (ret != 0):
             api.py_aa_i2c_free_bus(self.handle)
             raise_i2c_ex(ret)
-        if(num_written != length):
+        if (num_written != length):
             raise_aa_ex(-103)
 
     def read(self, config=I2CConfig.AA_I2C_NO_FLAGS):
@@ -266,10 +281,10 @@ class Adapter(object):
                                                  config,
                                                  length,
                                                  ata_in)
-        if(ret != 0):
+        if (ret != 0):
             api.py_aa_i2c_free_bus(self.handle)
             raise_i2c_ex(ret)
-        if(num_read != length):
+        if (num_read != length):
             raise_aa_ex(-102)
         val = ata_in[0]
         return val
@@ -318,7 +333,7 @@ if __name__ == "__main__":
     b.open(serialnumber=sn2)
     print a.unique_id()
     print b.unique_id()
-    #a.slave_addr = 20
+    # a.slave_addr = 20
     #print "Port: " + str(a.port)
     #print "Handle: " + str(a.handle)
     #print "Slave: " + str(a.slave_addr)

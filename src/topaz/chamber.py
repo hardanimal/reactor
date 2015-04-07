@@ -23,7 +23,7 @@ class Chamber(fsm.IFunc):
         self.i2c_adapter.open(serialnumber=adapter_sn)
         self.chamber_id = chamber_id
         self.channel_list = []
-        for i in range(chamber_id*8, chamber_id*8+8):
+        for i in range(chamber_id * 8, chamber_id * 8 + 8):
             my_channel = channel_open(ch_id=i, device=self.i2c_adapter)
             f = fsm.StateMachine(my_channel)
             f.run()
@@ -39,11 +39,11 @@ class Chamber(fsm.IFunc):
 
     def work(self, state):
         logging.debug("chamber " + str(self.chamber_id) + " start")
-        wait_for_discharge = 0      # time to delay for empty channel
-        while(not self.finish):
+        wait_for_discharge = 0  # time to delay for empty channel
+        while (not self.finish):
             self.finish = True
             for f in self.channel_list:
-                if(f.status.value == ChannelStates.EXIT):
+                if (f.status.value == ChannelStates.EXIT):
                     # check if already finished.
                     self.finish &= True
                     logging.info("-----channel finish.-----")
@@ -58,12 +58,12 @@ class Chamber(fsm.IFunc):
                 time.sleep(1)
 
                 # wait for this cycle to finish
-                while((f.status.value != ChannelStates.IDLE) and
-                      (f.status.value != ChannelStates.EXIT)):
+                while ((f.status.value != ChannelStates.IDLE) and
+                           (f.status.value != ChannelStates.EXIT)):
                     # check if the channle has finished burnin
                     time.sleep(5)
                 logging.info("-----channel done.-----")
-            if(not self.finish):
+            if (not self.finish):
                 # used to prevent only one channel left and
                 # get not enough time to dischage
                 time.sleep(wait_for_discharge)
@@ -87,10 +87,11 @@ if __name__ == "__main__":
     from topaz.config import DEVICE_LIST
 
     import argparse
+
     parser = argparse.ArgumentParser(description="chamber.py")
     parser.add_argument('chamber_id', action='store', help='chamber to burnin')
     args = parser.parse_args()
-    if(args.chamber_id == 0):
+    if (args.chamber_id == 0):
         device = DEVICE_LIST[0]
         ps_node = 5
     else:

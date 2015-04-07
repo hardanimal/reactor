@@ -57,15 +57,15 @@ class StateMachine(object):
         self.is_alive = False
 
     def loop(self, s):
-        while(self.is_alive):
+        while (self.is_alive):
             s.value = self.q.get()
-            if(s.value == States.INIT):
+            if (s.value == States.INIT):
                 self.mf.init()
-            elif(s.value == States.IDLE):
+            elif (s.value == States.IDLE):
                 self.mf.idle()
-            elif(s.value == States.ERROR):
+            elif (s.value == States.ERROR):
                 self.mf.error()
-            elif(s.value == States.EXIT):
+            elif (s.value == States.EXIT):
                 self.mf.exit()
                 self.is_alive = False
             else:

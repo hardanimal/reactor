@@ -12,8 +12,8 @@ import re
 import logging
 import time
 
-vid = 0x0b3e    # kikusui PIA4850 vendor id
-pid = 0x1014    # kikusui PIA4850 product id
+vid = 0x0b3e  # kikusui PIA4850 vendor id
+pid = 0x1014  # kikusui PIA4850 product id
 
 
 class PowerSupplyException(Exception):
@@ -21,7 +21,6 @@ class PowerSupplyException(Exception):
 
 
 class PowerSupply(object):
-
     def __init__(self):
         self.instr = usbtmc.Instrument(vid, pid)
         idn = self.instr.ask("*IDN?")
@@ -31,7 +30,7 @@ class PowerSupply(object):
             raise PowerSupplyException("No power supply found.")
         # clean err msg
         errmsg = self.instr.ask("ERR?")
-        while(errmsg != "0"):
+        while (errmsg != "0"):
             errmsg = self.instr.ask("ERR?")
 
     def reset(self):
@@ -39,7 +38,7 @@ class PowerSupply(object):
 
     def _checkerr(self):
         errmsg = self.instr.ask("ERR?")
-        while(errmsg != "0"):
+        while (errmsg != "0"):
             self.reset()
             raise PowerSupplyException(errmsg)
 
@@ -94,7 +93,6 @@ class PowerSupply(object):
 
 
 if __name__ == "__main__":
-
     ps = PowerSupply()
     print "###ADDR 5###"
     ps.selectChannel(node=5, ch=1)
@@ -107,7 +105,7 @@ if __name__ == "__main__":
     time.sleep(20)
     ps.deactivateOutput()
 
-    #print "###ADDR 6###"
+    # print "###ADDR 6###"
     #ps.selectChannel(node=6, ch=1)
     #setting = {"volt": 12.0, "curr": 5, "ovp": 13.0, "ocp": 10.0}
     #ps.set(setting)

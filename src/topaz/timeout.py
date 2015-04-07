@@ -11,6 +11,7 @@ def timethis(func):
     """
     Decorator that reports the execution time.
     """
+
     @wraps(func)
     def wrapper(*args, **kwargs):
         def timeout_handler(signum, frame):
@@ -18,17 +19,19 @@ def timethis(func):
 
         signal.signal(signal.SIGALRM, timeout_handler)
         timeout_time = kwargs.pop("timeout", 0)
-        signal.alarm(timeout_time)   # triger alarm in timeout_time seconds
+        signal.alarm(timeout_time)  # triger alarm in timeout_time seconds
         try:
             start = time.time()
             result = func(*args, **kwargs)
-            eplased = round(time.time()-start, 3)
+            eplased = round(time.time() - start, 3)
             return {"result": result, "timeout": False, "eplased": eplased}
         except TimeoutException:
             return {"result": None, "timeout": True, "eplased": None}
         finally:
-            signal.alarm(0)     # cancel the alarm
+            signal.alarm(0)  # cancel the alarm
+
     return wrapper
+
 
 if __name__ == "__main__":
     @timethis

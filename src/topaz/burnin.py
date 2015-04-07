@@ -13,7 +13,7 @@ def main():
         ps.selectChannel(node=5, ch=1)
         ps.set(setting)
         ps.activateOutput()
-        #ps.selectChannel(node=6, ch=1)
+        # ps.selectChannel(node=6, ch=1)
         #ps.set(setting)
         #ps.activateOutput()
     except Exception:

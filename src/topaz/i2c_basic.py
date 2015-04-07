@@ -4,34 +4,34 @@
 """
 
 REG_MAP = [{"name": "READINESS", "addr": 0x04},
-           {"name": "PGEMSTAT",  "addr": 0x05},
-           {"name": "TEMP",      "addr": 0x06},
-           {"name": "VIN",       "addr": 0x07},
-           {"name": "VCAP",      "addr": 0x08},
-           {"name": "VC1",       "addr": 0x09},
-           {"name": "VC2",       "addr": 0x0A},
-           {"name": "VC3",       "addr": 0x0B},
-           {"name": "VC4",       "addr": 0x0C},
-           {"name": "VC5",       "addr": 0x0D},
-           {"name": "VC6",       "addr": 0x0E},
-           {"name": "RESERVED",  "addr": 0x0F}]
+           {"name": "PGEMSTAT", "addr": 0x05},
+           {"name": "TEMP", "addr": 0x06},
+           {"name": "VIN", "addr": 0x07},
+           {"name": "VCAP", "addr": 0x08},
+           {"name": "VC1", "addr": 0x09},
+           {"name": "VC2", "addr": 0x0A},
+           {"name": "VC3", "addr": 0x0B},
+           {"name": "VC4", "addr": 0x0C},
+           {"name": "VC5", "addr": 0x0D},
+           {"name": "VC6", "addr": 0x0E},
+           {"name": "RESERVED", "addr": 0x0F}]
 
 EEP_MAP = [{"name": "PWRCYCS", "addr": 0x0268, "length": 2, "type": "word"},
            {"name": "LASTCAP", "addr": 0x026A, "length": 1, "type": "int"},
-           {"name": "MODEL",   "addr": 0x026B, "length": 8, "type": "str"},
-           {"name": "FWVER",   "addr": 0x0273, "length": 8, "type": "str"},
-           {"name": "HWVER",   "addr": 0x027B, "length": 8, "type": "str"},
-           {"name": "CAPPN",   "addr": 0x0283, "length": 8, "type": "str"},
-           {"name": "SN",      "addr": 0x028B, "length": 8, "type": "str"},
-           {"name": "PCBVER",  "addr": 0x0293, "length": 8, "type": "str"},
-           {"name": "MFDATE",  "addr": 0x029B, "length": 8, "type": "str"},
-           {"name": "ENDUSR",  "addr": 0x02A3, "length": 8, "type": "str"},
-           {"name": "PCA",     "addr": 0x02AB, "length": 8, "type": "str"},
-           {"name": "CINT",    "addr": 0x02B3, "length": 1, "type": "int"}]
+           {"name": "MODEL", "addr": 0x026B, "length": 8, "type": "str"},
+           {"name": "FWVER", "addr": 0x0273, "length": 8, "type": "str"},
+           {"name": "HWVER", "addr": 0x027B, "length": 8, "type": "str"},
+           {"name": "CAPPN", "addr": 0x0283, "length": 8, "type": "str"},
+           {"name": "SN", "addr": 0x028B, "length": 8, "type": "str"},
+           {"name": "PCBVER", "addr": 0x0293, "length": 8, "type": "str"},
+           {"name": "MFDATE", "addr": 0x029B, "length": 8, "type": "str"},
+           {"name": "ENDUSR", "addr": 0x02A3, "length": 8, "type": "str"},
+           {"name": "PCA", "addr": 0x02AB, "length": 8, "type": "str"},
+           {"name": "CINT", "addr": 0x02B3, "length": 1, "type": "int"}]
 
-EEPROM_REG_ADDRL = 0        # EEPROM register of ADDRESS LOW
-EEPROM_REG_ADDRH = 1        # EEPROM register of ADDRESS HIGH
-EEPROM_REG_RWDATA = 2       # EEPROM register of Data to read and write
+EEPROM_REG_ADDRL = 0  # EEPROM register of ADDRESS LOW
+EEPROM_REG_ADDRH = 1  # EEPROM register of ADDRESS HIGH
+EEPROM_REG_RWDATA = 2  # EEPROM register of Data to read and write
 
 
 def query_map(mymap, **kvargs):
@@ -42,7 +42,7 @@ def query_map(mymap, **kvargs):
     """
     r = mymap
     for k, v in kvargs.items():
-        r = filter(lambda row: row[k] == v,  r)
+        r = filter(lambda row: row[k] == v, r)
     return r
 
 
@@ -77,17 +77,17 @@ def readvpd_byname(device, eep_name):
     eep is one dict in eep_map, for example:
     {"name": "CINT", "addr": 0x02B3, "length": 1, "type": "int"}
     """
-    eep = query_map(EEP_MAP, name=eep_name)[0]     # eep is one dict in eep_map
-    start = eep["addr"]                 # start_address
-    length = eep["length"]              # length
-    typ = eep["type"]                   # type
+    eep = query_map(EEP_MAP, name=eep_name)[0]  # eep is one dict in eep_map
+    start = eep["addr"]  # start_address
+    length = eep["length"]  # length
+    typ = eep["type"]  # type
     datas = [read_ee(device, addr) for addr in range(start, (start + length))]
-    if(typ == "word"):
+    if (typ == "word"):
         val = datas[0] + (datas[1] << 8)
         return val
-    if(typ == "str"):
+    if (typ == "str"):
         return ''.join(chr(i) for i in datas)
-    if(typ == "int"):
+    if (typ == "int"):
         return datas[0]
 
 
@@ -97,7 +97,7 @@ def readreg_byname(device, reg_name):
     {"name": "VCAP",      "addr": 0x08},
     """
     device.slave_addr = 0x14
-    reg = query_map(REG_MAP, name=reg_name)[0]     # reg is one dict in reg_map
+    reg = query_map(REG_MAP, name=reg_name)[0]  # reg is one dict in reg_map
     addr = reg["addr"]
     return device.read_reg(addr)
 
@@ -130,14 +130,14 @@ def bitop_discharge(data):
     high = (data & 0xF0) >> 4
     low = data & 0x0F
     RELAY03 = 0x0
-    #RELAY47 = 0xAA
+    # RELAY47 = 0xAA
     RELAY47 = 0x0
     for i in range(4):
         b = high & 0x01
-        b <<= (i*2 + 1)
+        b <<= (i * 2 + 1)
 
         a = low & 0x01
-        a <<= (i*2 + 1)
+        a <<= (i * 2 + 1)
 
         RELAY47 += b
         RELAY03 += a
@@ -152,14 +152,14 @@ def bitop_charge(data):
     high = (data & 0xF0) >> 4
     low = data & 0x0F
     RELAY03 = 0x0
-    #RELAY47 = 0xAA
+    # RELAY47 = 0xAA
     RELAY47 = 0x0
     for i in range(4):
         b = high & 0x01
-        b <<= (i*2)
+        b <<= (i * 2)
 
         a = low & 0x01
-        a <<= (i*2)
+        a <<= (i * 2)
 
         RELAY47 += b
         RELAY03 += a
@@ -169,7 +169,7 @@ def bitop_charge(data):
     return RELAY47, RELAY03
 
 
-#def hwrd(device, chnum, slot):
+# def hwrd(device, chnum, slot):
 #    device.slave_addr = 0x38 + chnum
 #
 #    # config PIO to input
@@ -186,8 +186,8 @@ def bitop_charge(data):
 #        return False
 
 def hwrd(device, chnum):
-    if(chnum >= 8):
-        chnum -= 8      # map chamber 2 to chamber 1
+    if (chnum >= 8):
+        chnum -= 8  # map chamber 2 to chamber 1
 
     device.slave_addr = 0x38 + chnum
 
@@ -204,31 +204,31 @@ def hwrd(device, chnum):
 def set_relay(device, chnum, matrix, status=0):
     """set relay for dut
     """
-    if(chnum >= 8):
-        chnum -= 8      # map chamber 2 to chamber 1
+    if (chnum >= 8):
+        chnum -= 8  # map chamber 2 to chamber 1
     REG_OUTPUT = 0x02
     REG_CONFIG = 0x06
     dutnum = chnum * 8
     chnum, slot = position(dutnum)
-    device.slave_addr = 0x20 + chnum     # 0100000
+    device.slave_addr = 0x20 + chnum  # 0100000
 
     # config PIO to output
     wdata = [REG_CONFIG, 0x00, 0x00]
     device.write(wdata)
 
     # set charge relay
-    wdata = [REG_OUTPUT, 0x00, 0x00]    # open all relay
+    wdata = [REG_OUTPUT, 0x00, 0x00]  # open all relay
     device.write(wdata)
 
-    if(status == 0):
+    if (status == 0):
         # discharge
         high, low = bitop_discharge(matrix)
-        wdata = [REG_OUTPUT, low, high]    # all discharge
+        wdata = [REG_OUTPUT, low, high]  # all discharge
         device.write(wdata)
     else:
         # charge
         high, low = bitop_charge(matrix)
-        wdata = [REG_OUTPUT, low, high]    # all charge
+        wdata = [REG_OUTPUT, low, high]  # all charge
         device.write(wdata)
 
 
@@ -237,9 +237,9 @@ def switch(device, chnum, slot):
        chnum(channel number): 0~7
        slotnum(slot number): 0~7
     """
-    if(chnum >= 8):
-        chnum -= 8      # map chamber 2 to chamber 1
-    device.slave_addr = 0x70 + chnum    # 0111 0000
+    if (chnum >= 8):
+        chnum -= 8  # map chamber 2 to chamber 1
+    device.slave_addr = 0x70 + chnum  # 0111 0000
     wdata = [0x01 << slot]
     device.write(wdata)
 
@@ -249,9 +249,9 @@ def deswitch(device, chnum):
        chnum(channel number): 0~7
        slotnum(slot number): 0~7
     """
-    if(chnum >= 8):
-        chnum -= 8      # map chamber 2 to chamber 1
-    device.slave_addr = 0x70 + chnum    # 0111 0000
+    if (chnum >= 8):
+        chnum -= 8  # map chamber 2 to chamber 1
+    device.slave_addr = 0x70 + chnum  # 0111 0000
     wdata = 0x00
     device.write(wdata)
 
@@ -271,7 +271,7 @@ if __name__ == "__main__":
     matrix = hwrd(device, channel)
     set_relay(device, channel, matrix, status=1)
     for i in range(8):
-        if(matrix & (0x01 << i)):
+        if (matrix & (0x01 << i)):
             try:
                 print str(i) + " is ready."
                 switch(device, channel, i)

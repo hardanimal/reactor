@@ -24,7 +24,7 @@ class DB(object):
 
     def setup(self):
         """cleanup dut running db, set all status to idle."""
-        #self.dutrunning.remove()  # delete the real time status
+        # self.dutrunning.remove()  # delete the real time status
         for i in self.dutlist:
             self.dutrunning.find_and_modify({"_id": i}, remove=True)
             d = {"_id": i, "STATUS": DUTStatus.IDLE}
@@ -41,7 +41,7 @@ class DB(object):
         """update dut in dutrunning """
         self.dutrunning.save(d)
 
-    #def update_status(self, dutnum, status, msg=""):
+    # def update_status(self, dutnum, status, msg=""):
     #    """update dut["STATUS"]"""
     #    d = self.dutrunning.find_one({"_id": dutnum})
     #    d["STATUS"] = status
@@ -53,7 +53,7 @@ class DB(object):
         for i in self.dutlist:
             dut = self.fetch(i)
             status = dut["STATUS"]
-            if(status != DUTStatus.PASSED and status != DUTStatus.FAILED):
+            if (status != DUTStatus.PASSED and status != DUTStatus.FAILED):
                 # not passed or failed dut, no need to archive
                 continue
             d = self.dutrunning.find_one({"_id": i})
