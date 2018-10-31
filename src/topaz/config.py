@@ -23,14 +23,14 @@ class DUTStatus(object):
 
 
 class LIMITS(object):
-    VCAP_LIMITS_HIGH = 121
+    VCAP_LIMITS_HIGH = 125
     TEMP_LIMITS_HIGH = 65
     VCAP_THRESH_HIGH = 118
-    VCAP_THRESH_LOW = 48  # need confirm
-    MAX_DISCHANGE_TIME = 100  # seconds
+    VCAP_THRESH_LOW = 50  # need confirm
+    MAX_DISCHANGE_TIME = 150  # seconds
     # MAX_CHARGE_TIME = 113           # seconds
     MAX_CHARGE_TIME = 300  # seconds
-    POWER_CYCLE = 180
+    POWER_CYCLE = 16
 
 
 class I2CADDR(object):

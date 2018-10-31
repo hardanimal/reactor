@@ -2,7 +2,7 @@
 # encoding: utf-8
 """ I2C basic functions for topaz VPD and registers
 """
-
+import time
 REG_MAP = [{"name": "READINESS", "addr": 0x04},
            {"name": "PGEMSTAT", "addr": 0x05},
            {"name": "TEMP", "addr": 0x06},
@@ -58,6 +58,7 @@ def re_position(chamber, chnum, slot):
 
 def read_ee(device, addr):
     """method to read eeprom data,
+
     first write low address byte to register EEPROM_REG_ADDRL,
     then write high address byte to register EEPROM_REG_ADDRH,
     then read the data from register EEPROM_REG_RWDATA.
@@ -71,13 +72,14 @@ def read_ee(device, addr):
     val = device.read_reg(EEPROM_REG_RWDATA)
     return val
 
-def write_ee(device, addr, data):
+def write_ee(device,addr, data):
     device.slave_addr = 0x14
+    device.write_reg(0x12, 0x5a)
+    #print addr & 0xFF, (addr >> 8) & 0xFF, data & 0xFF
     device.write_reg(EEPROM_REG_ADDRL, addr & 0xFF)
     device.write_reg(EEPROM_REG_ADDRH, (addr >> 8) & 0xFF)
-    device.write_reg(EEPROM_REG_RWDATA, data)
-
-
+    device.write_reg(EEPROM_REG_RWDATA, data & 0xFF)
+    
 def readvpd_byname(device, eep_name):
     """method to read eep_data according to eep_name
     eep is one dict in eep_map, for example:
@@ -97,19 +99,18 @@ def readvpd_byname(device, eep_name):
         return datas[0]
 
 def writevpd_byname(device, eep_name, data):
-    eep = query_map(EEP_MAP, name=eep_name)[0]  # eep is one dict in eep_map
-    start = eep["addr"]  # start_address
-    length = eep["length"]  # length
-    typ = eep["type"]  # type
-    if (typ == "word"):
-        wata = [data & 0xFF, (data >> 8) & 0xFF]
-    if (typ == "str"):
-        wata = [ord(ch) for ch in list(data)]
-    if (typ == "int"):
-        wata = int(data)
-    for addr in range(start, (start + length)):
-        write_ee(device, addr, wata)
-
+    eep = query_map(EEP_MAP, name=eep_name)[0]
+    start = eep["addr"]
+    length = eep["length"]
+    typ =eep["type"]
+    if typ == "word":
+	ata = [data & 0xFF, (data >> 8) & 0xFF]
+    if typ == "str":
+	ata = [ord(ch) for ch in list(data)]
+    if typ == "int":
+	ata = [int(data)]
+    for addr in range (start, (start + length)):
+	write_ee(device, addr, ata[addr-start])
 
 def readreg_byname(device, reg_name):
     """method to read register data according to register name

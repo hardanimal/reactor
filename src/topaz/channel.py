@@ -259,21 +259,23 @@ class Channel(fsm.IFunc):
                             self.result[i] == Cycle.PASS or
                             self.result[i] == Cycle.FAIL):
                     continue
-
+#                logging.info('--------1-----')
                 switch(self.device, self.ch_id, i)
                 self.result[i] = Cycle.DISCHARGING
-
+                
+#                logging.info('--------2-----')
                 dut_id = re_position(self.chamber, self.ch_id, i)
                 dut = self.db.fetch(dut_id)
                 result = dut_reg(self.device)
                 result.update({"TIME": time.time() - start_s})
                 vcap = result["VCAP"]
                 temp = result["TEMP"]
-
+#                logging.info('--------3------')
                 if (vcap <= LIMITS.VCAP_THRESH_LOW and
                             temp <= LIMITS.TEMP_LIMITS_HIGH):
                     finish &= True
                     self.result[i] = Cycle.DISCHARGE_FINISH
+#		    writevpd_byname(self.device, "PWRCYCS", int(dut["PWRCYCS"])+1)
                 elif (vcap > LIMITS.VCAP_LIMITS_HIGH):
                     # over charge voltage, fail
                     logging.error("[-]" + " over charge voltage: " + str(vcap))
@@ -290,18 +292,15 @@ class Channel(fsm.IFunc):
                     finish &= True
                 else:
                     finish &= False
-
+               
+#                logging.info('--------4------')
                 # record result
                 curr_cycle = "CYCLES" + str(int(dut["PWRCYCS"]) + 1)
                 if curr_cycle not in dut:
                     dut.update({curr_cycle: []})
                 dut[curr_cycle].append(result)
                 self.db.update(dut)
-
-
-                cyc = dut_info(self.device)["PWRCYCS"]
-                writevpd_byname(self.device, "PWRCYCS", int(cyc)+1)
-
+#                logging.info('--------5------')
 
                 display = "[" + str(curr_cycle) + "] " + "DUT: " + \
                           str(re_position(self.chamber, self.ch_id, i)) + \
@@ -316,6 +315,7 @@ class Channel(fsm.IFunc):
     def process_postcheck(self):
         result = True
         for i in range(SLOTNUM):
+	    
             self.result[i] = Cycle.IDLING
             dut_id = re_position(self.chamber, self.ch_id, i)
             dut = self.db.fetch(dut_id)
