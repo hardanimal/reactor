@@ -71,6 +71,12 @@ def read_ee(device, addr):
     val = device.read_reg(EEPROM_REG_RWDATA)
     return val
 
+def write_ee(device, addr, data):
+    device.slave_addr = 0x14
+    device.write_reg(EEPROM_REG_ADDRL, addr & 0xFF)
+    device.write_reg(EEPROM_REG_ADDRH, (addr >> 8) & 0xFF)
+    device.write_reg(EEPROM_REG_RWDATA, data)
+
 
 def readvpd_byname(device, eep_name):
     """method to read eep_data according to eep_name
@@ -89,6 +95,20 @@ def readvpd_byname(device, eep_name):
         return ''.join(chr(i) for i in datas)
     if (typ == "int"):
         return datas[0]
+
+def writevpd_byname(device, eep_name, data):
+    eep = query_map(EEP_MAP, name=eep_name)[0]  # eep is one dict in eep_map
+    start = eep["addr"]  # start_address
+    length = eep["length"]  # length
+    typ = eep["type"]  # type
+    if (typ == "word"):
+        wata = [data & 0xFF, (data >> 8) & 0xFF]
+    if (typ == "str"):
+        wata = [ord(ch) for ch in list(data)]
+    if (typ == "int"):
+        wata = int(data)
+    for addr in range(start, (start + length)):
+        write_ee(device, addr, wata)
 
 
 def readreg_byname(device, reg_name):

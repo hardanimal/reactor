@@ -7,6 +7,7 @@ from topaz import fsm
 from topaz.pyaardvark import Adapter
 from topaz.i2c_basic import set_relay, switch, hwrd, re_position, deswitch
 from topaz.i2c_basic import dut_info, dut_reg
+from topaz.i2c_basic import writevpd_byname
 from topaz.db import DB
 from topaz.config import CHARGE, DISCHARGE, SLOTNUM
 from topaz.config import DUTStatus, LIMITS, DEVICE_LIST, DELAY
@@ -296,6 +297,11 @@ class Channel(fsm.IFunc):
                     dut.update({curr_cycle: []})
                 dut[curr_cycle].append(result)
                 self.db.update(dut)
+
+
+                cyc = dut_info(self.device)["PWRCYCS"]
+                writevpd_byname(self.device, "PWRCYCS", int(cyc)+1)
+
 
                 display = "[" + str(curr_cycle) + "] " + "DUT: " + \
                           str(re_position(self.chamber, self.ch_id, i)) + \
