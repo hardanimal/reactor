@@ -8,7 +8,7 @@
 #    func = lambda name, enc=ascii: {True: enc}.get(name == 'mbcs')
 #    codecs.register(func)
 
-import topaz
+from src import topaz
 from setuptools import setup
 
 #from distutils.core import setup
