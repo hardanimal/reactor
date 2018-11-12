@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # encoding: utf-8
 from topaz import fsm
-from topaz.config import DEVICE_LIST
+from topaz.config import DEVICE_LIST, POWERADDR
 from topaz.chamber import Chamber, ChamberStates
 from topaz.pwr import PowerSupply
 
@@ -13,7 +13,7 @@ def main():
         #ps.selectChannel(node=5, ch=1)
         #ps.set(setting)
         #ps.activateOutput()
-        ps.selectChannel(node=6, ch=1)
+        ps.selectChannel(node=POWERADDR, ch=1)
         ps.set(setting)
         ps.activateOutput()
     except Exception:
