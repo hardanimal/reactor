@@ -13,7 +13,7 @@ SLOTNUM = 8  # total slot on 1 channel
 CHANNUM = 8  # total channel on 1 rack
 TOTALDUTS = 128  # total dut number
 
-POWERADDR = 5
+POWERADDR = 6
 
 
 class DUTStatus(object):
