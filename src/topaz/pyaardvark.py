@@ -16,17 +16,14 @@ import imp
 
 from pkg_resources import resource_filename
 
-aardvark32 = resource_filename(__name__, 'aardvark32.so')
-aardvark64 = resource_filename(__name__, 'aardvark64.so')
+#aardvark32 = resource_filename(__name__, 'aardvark32.so')
+#aardvark64 = resource_filename(__name__, 'aardvark64.so')
+aardvark_driver = resource_filename(__name__, 'aardvark.so')
 try:
-    api = imp.load_dynamic('aardvark', aardvark32)
+    api = imp.load_dynamic('aardvark', aardvark_driver)
 except Exception as e:
     logging.error(e)
-    try:
-        api = imp.load_dynamic('aardvark', aardvark64)
-    except Exception as e:
-        logging.error(e)
-        api = None
+    api = None
 
 DEFAULT_REG_VAL = 0xFF
 PORT_NOT_FREE = 0x8000
