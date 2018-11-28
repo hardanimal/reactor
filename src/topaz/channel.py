@@ -156,174 +156,189 @@ class Channel(fsm.IFunc):
 
     def process_precheck(self):
         """pre check"""
-        set_relay(self.device, self.ch_id, 0xFF, status=CHARGE)
-        time.sleep(DELAY.POWERON)  # wait for device to be ready
-        matrix = hwrd(self.device, self.ch_id)
-        set_relay(self.device, self.ch_id, matrix, status=CHARGE)
-        for i in range(SLOTNUM):
-            dut_id = re_position(self.chamber, self.ch_id, i)
-            dut = self.db.fetch(dut_id)
-            if (matrix & (0x01 << i)):
-                # dut present
-                switch(self.device, self.ch_id, i)
-                dut.update(dut_info(self.device))
-                dut["STATUS"] = DUTStatus.TESTING
-                if (dut["PWRCYCS"] >= LIMITS.POWER_CYCLE):
-                    dut["STATUS"] = DUTStatus.PASSED
-                    dut["MESSAGE"] = "DUT PASSED."
-                    self.result[i] = Cycle.PASS
-                    logging.info("[+]" + str(dut["_id"]) + " " +
-                                 dut["SN"] + " passed.")
-                logging.info("[+] " + "Found " + dut["MODEL"] + " " +
-                             dut["SN"] + " " + str(dut["PWRCYCS"]) + " on "
-                             + str(re_position(self.chamber, self.ch_id, i)))
-            else:
-                logging.error(str(dut_id) + " is not found.")
-                dut["STATUS"] = DUTStatus.BLANK
-                self.result[i] = Cycle.BLANK
-            self.db.update(dut)
-        deswitch(self.device, self.ch_id)
-        # set_relay(device, ch_id, matrix, status=DISCHARGE)
-        return matrix
+        try:
+            set_relay(self.device, self.ch_id, 0xFF, status=CHARGE)
+            time.sleep(DELAY.POWERON)  # wait for device to be ready
+            matrix = hwrd(self.device, self.ch_id)
+            set_relay(self.device, self.ch_id, matrix, status=CHARGE)
+            for i in range(SLOTNUM):
+                dut_id = re_position(self.chamber, self.ch_id, i)
+                dut = self.db.fetch(dut_id)
+                if (matrix & (0x01 << i)):
+                    # dut present
+                    switch(self.device, self.ch_id, i)
+                    dut.update(dut_info(self.device))
+                    dut["STATUS"] = DUTStatus.TESTING
+                    if (dut["PWRCYCS"] >= LIMITS.POWER_CYCLE):
+                        dut["STATUS"] = DUTStatus.PASSED
+                        dut["MESSAGE"] = "DUT PASSED."
+                        self.result[i] = Cycle.PASS
+                        logging.info("[+]" + str(dut["_id"]) + " " +
+                                     dut["SN"] + " passed.")
+                    logging.info("[+] " + "Found " + dut["MODEL"] + " " +
+                                 dut["SN"] + " " + str(dut["PWRCYCS"]) + " on "
+                                 + str(re_position(self.chamber, self.ch_id, i)))
+                else:
+                    logging.error(str(dut_id) + " is not found.")
+                    dut["STATUS"] = DUTStatus.BLANK
+                    self.result[i] = Cycle.BLANK
+                self.db.update(dut)
+            deswitch(self.device, self.ch_id)
+            # set_relay(device, ch_id, matrix, status=DISCHARGE)
+            return matrix
+        except Exception as e:
+            logging.error(traceback.format_exc(sys.exc_info()))
+            raise e
 
     @gauge
     def process_charge(self):
-        # set_relay(device, ch_id, matrix, status=CHARGE)
-        start_s = time.time()
-        finish = False
-        while (not finish):
-            finish = True
-            for i in range(SLOTNUM):
-                if (self.result[i] == Cycle.BLANK or
-                            self.result[i] == Cycle.PASS or
-                            self.result[i] == Cycle.FAIL):
-                    continue
+        try:
+            # set_relay(device, ch_id, matrix, status=CHARGE)
+            start_s = time.time()
+            finish = False
+            while (not finish):
+                finish = True
+                for i in range(SLOTNUM):
+                    if (self.result[i] == Cycle.BLANK or
+                                self.result[i] == Cycle.PASS or
+                                self.result[i] == Cycle.FAIL):
+                        continue
 
-                switch(self.device, self.ch_id, i)
-                self.result[i] = Cycle.CHARGING
+                    switch(self.device, self.ch_id, i)
+                    self.result[i] = Cycle.CHARGING
 
-                dut_id = re_position(self.chamber, self.ch_id, i)
-                dut = self.db.fetch(dut_id)
-                result = dut_reg(self.device)
-                result.update({"TIME": time.time() - start_s})
-                vcap = result["VCAP"]
-                temp = result["TEMP"]
+                    dut_id = re_position(self.chamber, self.ch_id, i)
+                    dut = self.db.fetch(dut_id)
+                    result = dut_reg(self.device)
+                    result.update({"TIME": time.time() - start_s})
+                    vcap = result["VCAP"]
+                    temp = result["TEMP"]
 
-                if (vcap >= LIMITS.VCAP_THRESH_HIGH and
-                            temp <= LIMITS.TEMP_LIMITS_HIGH):
-                    finish &= True
-                    self.result[i] = Cycle.CHARGE_FINISH
-                elif (vcap > LIMITS.VCAP_LIMITS_HIGH):
-                    # over charge voltage, fail
-                    logging.error("[-]" + " over charge voltage: " + str(vcap))
-                    dut["STATUS"] = DUTStatus.FAILED
-                    dut["MESSAGE"] = "DUT VCAP HIGH."
-                    self.result[i] = Cycle.FAIL
-                    finish &= True
-                elif (temp > LIMITS.TEMP_LIMITS_HIGH):
-                    # over temperature, fail
-                    logging.error("[-]" + " over temperature: " + str(temp))
-                    dut["STATUS"] = DUTStatus.FAILED
-                    dut["MESSAGE"] = "DUT TEMP HIGH."
-                    self.result[i] = Cycle.FAIL
-                    finish &= True
-                else:
-                    finish &= False
+                    if (vcap >= LIMITS.VCAP_THRESH_HIGH and
+                                temp <= LIMITS.TEMP_LIMITS_HIGH):
+                        finish &= True
+                        self.result[i] = Cycle.CHARGE_FINISH
+                    elif (vcap > LIMITS.VCAP_LIMITS_HIGH):
+                        # over charge voltage, fail
+                        logging.error("[-]" + " over charge voltage: " + str(vcap))
+                        dut["STATUS"] = DUTStatus.FAILED
+                        dut["MESSAGE"] = "DUT VCAP HIGH."
+                        self.result[i] = Cycle.FAIL
+                        finish &= True
+                    elif (temp > LIMITS.TEMP_LIMITS_HIGH):
+                        # over temperature, fail
+                        logging.error("[-]" + " over temperature: " + str(temp))
+                        dut["STATUS"] = DUTStatus.FAILED
+                        dut["MESSAGE"] = "DUT TEMP HIGH."
+                        self.result[i] = Cycle.FAIL
+                        finish &= True
+                    else:
+                        finish &= False
 
-                # record result
-                curr_cycle = "CYCLES" + str(int(dut["PWRCYCS"]) + 1)
-                if curr_cycle not in dut:
-                    dut.update({curr_cycle: []})
-                dut[curr_cycle].append(result)
-                self.db.update(dut)
+                    # record result
+                    curr_cycle = "CYCLES" + str(int(dut["PWRCYCS"]) + 1)
+                    if curr_cycle not in dut:
+                        dut.update({curr_cycle: []})
+                    dut[curr_cycle].append(result)
+                    self.db.update(dut)
 
-                display = "[" + str(curr_cycle) + "] " + "DUT: " + \
-                          str(re_position(self.chamber, self.ch_id, i)) + \
-                          " VCAP: " + str(vcap) + \
-                          " VIN: " + str(result["VIN"]) + \
-                          " TEMP: " + str(temp)
-                logging.info(display)
-            logging.info(" ")  # separator for display
-            deswitch(self.device, self.ch_id)
-            time.sleep(DELAY.READCYCLE)
+                    display = "[" + str(curr_cycle) + "] " + "DUT: " + \
+                              str(re_position(self.chamber, self.ch_id, i)) + \
+                              " VCAP: " + str(vcap) + \
+                              " VIN: " + str(result["VIN"]) + \
+                              " TEMP: " + str(temp)
+                    logging.info(display)
+                logging.info(" ")  # separator for display
+                deswitch(self.device, self.ch_id)
+                time.sleep(DELAY.READCYCLE)
+        except Exception as e:
+            logging.error(traceback.format_exc(sys.exc_info()))
+            raise e
 
     @gauge
     def process_discharge(self):
-        set_relay(self.device, self.ch_id, self.matrix, status=DISCHARGE)
-        start_s = time.time()
-        finish = False
-        while (not finish):
-            finish = True
-            for i in range(SLOTNUM):
-                if (self.result[i] == Cycle.BLANK or
-                            self.result[i] == Cycle.PASS or
-                            self.result[i] == Cycle.FAIL):
-                    continue
-#                logging.info('--------1-----')
-                switch(self.device, self.ch_id, i)
-                self.result[i] = Cycle.DISCHARGING
-                
-#                logging.info('--------2-----')
-                dut_id = re_position(self.chamber, self.ch_id, i)
-                dut = self.db.fetch(dut_id)
-                result = dut_reg(self.device)
-                result.update({"TIME": time.time() - start_s})
-                vcap = result["VCAP"]
-                temp = result["TEMP"]
-#                logging.info('--------3------')
-                if (vcap <= LIMITS.VCAP_THRESH_LOW and
-                            temp <= LIMITS.TEMP_LIMITS_HIGH):
-                    finish &= True
-                    self.result[i] = Cycle.DISCHARGE_FINISH
-#		    writevpd_byname(self.device, "PWRCYCS", int(dut["PWRCYCS"])+1)
-                elif (vcap > LIMITS.VCAP_LIMITS_HIGH):
-                    # over charge voltage, fail
-                    logging.error("[-]" + " over charge voltage: " + str(vcap))
-                    dut["STATUS"] = DUTStatus.FAILED
-                    dut["MESSAGE"] = "DUT VCAP HIGH."
-                    self.result[i] = Cycle.FAIL
-                    finish &= True
-                elif (temp > LIMITS.TEMP_LIMITS_HIGH):
-                    # over temperature, fail
-                    logging.error("[-]" + " over temperature: " + str(temp))
-                    dut["STATUS"] = DUTStatus.FAILED
-                    dut["MESSAGE"] = "DUT TEMP HIGH."
-                    self.result[i] = Cycle.FAIL
-                    finish &= True
-                else:
-                    finish &= False
-               
-#                logging.info('--------4------')
-                # record result
-                curr_cycle = "CYCLES" + str(int(dut["PWRCYCS"]) + 1)
-                if curr_cycle not in dut:
-                    dut.update({curr_cycle: []})
-                dut[curr_cycle].append(result)
-                self.db.update(dut)
-#                logging.info('--------5------')
+        try:
+            set_relay(self.device, self.ch_id, self.matrix, status=DISCHARGE)
+            start_s = time.time()
+            finish = False
+            while (not finish):
+                finish = True
+                for i in range(SLOTNUM):
+                    if (self.result[i] == Cycle.BLANK or
+                                self.result[i] == Cycle.PASS or
+                                self.result[i] == Cycle.FAIL):
+                        continue
+    #                logging.info('--------1-----')
+                    switch(self.device, self.ch_id, i)
+                    self.result[i] = Cycle.DISCHARGING
 
-                display = "[" + str(curr_cycle) + "] " + "DUT: " + \
-                          str(re_position(self.chamber, self.ch_id, i)) + \
-                          " VCAP: " + str(vcap) + \
-                          " VIN: " + str(result["VIN"]) + \
-                          " TEMP: " + str(temp)
-                logging.info(display)
-            logging.info(" ")  # separator for display
-            deswitch(self.device, self.ch_id)
-            time.sleep(DELAY.READCYCLE)
+    #                logging.info('--------2-----')
+                    dut_id = re_position(self.chamber, self.ch_id, i)
+                    dut = self.db.fetch(dut_id)
+                    result = dut_reg(self.device)
+                    result.update({"TIME": time.time() - start_s})
+                    vcap = result["VCAP"]
+                    temp = result["TEMP"]
+    #                logging.info('--------3------')
+                    if (vcap <= LIMITS.VCAP_THRESH_LOW and
+                                temp <= LIMITS.TEMP_LIMITS_HIGH):
+                        finish &= True
+                        self.result[i] = Cycle.DISCHARGE_FINISH
+                        #writevpd_byname(self.device, "PWRCYCS", int(dut["PWRCYCS"])+1)
+                    elif (vcap > LIMITS.VCAP_LIMITS_HIGH):
+                        # over charge voltage, fail
+                        logging.error("[-]" + " over charge voltage: " + str(vcap))
+                        dut["STATUS"] = DUTStatus.FAILED
+                        dut["MESSAGE"] = "DUT VCAP HIGH."
+                        self.result[i] = Cycle.FAIL
+                        finish &= True
+                    elif (temp > LIMITS.TEMP_LIMITS_HIGH):
+                        # over temperature, fail
+                        logging.error("[-]" + " over temperature: " + str(temp))
+                        dut["STATUS"] = DUTStatus.FAILED
+                        dut["MESSAGE"] = "DUT TEMP HIGH."
+                        self.result[i] = Cycle.FAIL
+                        finish &= True
+                    else:
+                        finish &= False
+
+    #                logging.info('--------4------')
+                    # record result
+                    curr_cycle = "CYCLES" + str(int(dut["PWRCYCS"]) + 1)
+                    if curr_cycle not in dut:
+                        dut.update({curr_cycle: []})
+                    dut[curr_cycle].append(result)
+                    self.db.update(dut)
+    #                logging.info('--------5------')
+
+                    display = "[" + str(curr_cycle) + "] " + "DUT: " + \
+                              str(re_position(self.chamber, self.ch_id, i)) + \
+                              " VCAP: " + str(vcap) + \
+                              " VIN: " + str(result["VIN"]) + \
+                              " TEMP: " + str(temp)
+                    logging.info(display)
+                logging.info(" ")  # separator for display
+                deswitch(self.device, self.ch_id)
+                time.sleep(DELAY.READCYCLE)
+        except Exception as e:
+            logging.error(traceback.format_exc(sys.exc_info()))
+            raise e
 
     def process_postcheck(self):
-        result = True
-        for i in range(SLOTNUM):
-	    
-            self.result[i] = Cycle.IDLING
-            dut_id = re_position(self.chamber, self.ch_id, i)
-            dut = self.db.fetch(dut_id)
-            if (dut["STATUS"] == DUTStatus.TESTING):
-                dut["STATUS"] = DUTStatus.IDLE
-                self.db.update(dut)
-                result &= False
-        return result
+        try:
+            result = True
+            for i in range(SLOTNUM):
+                self.result[i] = Cycle.IDLING
+                dut_id = re_position(self.chamber, self.ch_id, i)
+                dut = self.db.fetch(dut_id)
+                if (dut["STATUS"] == DUTStatus.TESTING):
+                    dut["STATUS"] = DUTStatus.IDLE
+                    self.db.update(dut)
+                    result &= False
+            return result
+        except Exception as e:
+            logging.error(traceback.format_exc(sys.exc_info()))
+            raise e
 
     def process_error(self):
         for i in range(SLOTNUM):
