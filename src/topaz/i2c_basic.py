@@ -104,13 +104,13 @@ def writevpd_byname(device, eep_name, data):
     length = eep["length"]
     typ =eep["type"]
     if typ == "word":
-	ata = [data & 0xFF, (data >> 8) & 0xFF]
+        ata = [data & 0xFF, (data >> 8) & 0xFF]
     if typ == "str":
-	ata = [ord(ch) for ch in list(data)]
+        ata = [ord(ch) for ch in list(data)]
     if typ == "int":
-	ata = [int(data)]
+        ata = [int(data)]
     for addr in range (start, (start + length)):
-	write_ee(device, addr, ata[addr-start])
+        write_ee(device, addr, ata[addr-start])
 
 def readreg_byname(device, reg_name):
     """method to read register data according to register name
