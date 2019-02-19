@@ -67,5 +67,5 @@ class DUTERROR(object):
     TEMP_HIGH = DUTException(code=0x06, message="over temperature")
 
 
-DEVICE_LIST = [2237839440,
-               2237849511]
+DEVICE_LIST = [2237839440, 2237849511] #SWJ
+#DEVICE_LIST = [2237892748, 2237902805] #LAB
