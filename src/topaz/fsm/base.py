@@ -2,7 +2,8 @@
 # encoding: utf-8
 """event-driven state machine
 """
-from multiprocessing import Process, Queue, Value, queues
+from multiprocessing import Process, Queue, Value
+from threading import Thread
 from exceptions import NotImplementedError
 
 
@@ -16,8 +17,7 @@ class States(object):
 
 class IFunc(object):
     def __init__(self):
-        #self.queue = Queue()
-        self.queue = queues.SimpleQueue()
+        self.queue = Queue()
 
     def init(self):
         raise NotImplementedError
@@ -35,9 +35,8 @@ class IFunc(object):
         raise NotImplementedError
 
     def empty(self):
-        self.queue.empty()
-        #for i in range(self.queue.qsize()):
-            #self.queue.get()
+        for i in range(self.queue.qsize()):
+            self.queue.get()
 
 
 class StateMachine(object):
@@ -51,7 +50,8 @@ class StateMachine(object):
         self.q.put(state)
 
     def run(self):
-        p = Process(target=self.loop, args=(self.status, ))
+        #p = Process(target=self.loop, args=(self.status, ))
+        p = Thread(target=self.loop, args=(self.status, ))
         p.start()
 
     def quit(self):
