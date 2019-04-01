@@ -1,5 +1,8 @@
 #!/usr/bin/env python
 # encoding: utf-8
+import sys
+sys.path.append("./src/")
+
 from topaz import fsm
 from topaz.config import DEVICE_LIST, POWERADDR
 from topaz.chamber import Chamber, ChamberStates
